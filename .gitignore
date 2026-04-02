@@ -1,0 +1,38 @@
+#Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+.terraform.lock.hcl
+*.tfvars
+
+# Local .env files
+.env
+.env.local
+.env.*.local
+.venv/
+data/
+
+# Tinker v2 framework (portable - not part of host project)
+agents2/
+.githooks/
+.gitattributes
+agent_framework_config.yaml
+AGENTS.md
+agent.md
+.pre-commit-config.yaml
+
+# Tinker v2 generated runtime state
+# Keep optional task/plan artifacts visible unless the host chooses otherwise.
+.tinker/active_kernels.yaml
+.tinker/architecture_metrics.yaml
+.tinker/capability_map.yaml
+.tinker/context_bundle.yaml
+.tinker/context_graph.json
+.tinker/dependencies_graph.json
+.tinker/dependencies_report.md
+.tinker/project_metadata.meta.json
+.tinker/project_metadata.yaml
+.tinker/skills_registry.json
+.tinker/treemap.md
+.tinker/generated_skill_wrappers/

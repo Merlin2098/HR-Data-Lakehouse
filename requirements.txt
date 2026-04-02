@@ -1,0 +1,30 @@
+# Data stack
+pandas
+polars
+pyarrow
+
+# Excel I/O
+fastexcel
+openpyxl
+xlsxwriter
+
+# SQL engine
+duckdb
+
+# Frontend
+pyside6
+
+# Validation and schemas
+jsonschema
+pydantic
+pyyaml
+hypothesis
+pytest
+
+# Packaging and tooling
+pathspec
+pre-commit
+pyinstaller
+python-dateutil
+setuptools
+wheel
