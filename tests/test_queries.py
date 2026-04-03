@@ -26,7 +26,7 @@ def test_silver_to_gold_query_targets_expected_view_and_enrichment() -> None:
     assert "{{year}}" in sql_text
     assert "{{month}}" in sql_text
     assert "{{day}}" in sql_text
-    assert "{{source_file}}" in sql_text
     assert "{{run_id}}" in sql_text
     assert "{{processed_at_utc}}" in sql_text
+    assert "source_file" in sql_text
     assert "very_high" in sql_text

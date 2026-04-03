@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.common.config_loader import load_yaml_file
-from src.common.contract_loader import expected_columns
+from src.common.contract_loader import dataset_contract, expected_columns
 from src.common.project_paths import resolve_project_path
 
 
@@ -58,28 +58,46 @@ EXPECTED_GOLD_COLUMNS = [
 
 def test_transformations_config_declares_bronze_to_silver_pipeline() -> None:
     config = load_yaml_file(resolve_project_path("src/configs/transformations.yaml"))
+    assert config["defaults"]["execution_mode"] == "local"
+    assert config["defaults"]["engines"] == {"local": "duckdb", "aws": "glue_spark"}
     pipeline = config["pipelines"]["bronze_to_silver"]
 
-    assert pipeline["source"]["local_path"] == "data/HR-Employee-Attrition.csv"
+    assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition.csv"
+    assert pipeline["source"]["source_uri"] == "s3://{bronze_bucket}/hr_attrition/raw/"
     assert pipeline["target"]["format"] == "parquet"
     assert pipeline["target"]["layout"] == "dataset"
     assert pipeline["target"]["write_mode"] == "overwrite_full"
     assert pipeline["artifacts"]["query_path"] == "src/queries/bronze_to_silver.sql"
+    assert pipeline["artifacts"]["query_uri"] == "s3://{scripts_bucket}/queries/bronze_to_silver.sql"
     assert pipeline["artifacts"]["contract_path"] == "src/configs/contracts.yaml"
-    assert pipeline["target"]["local_path"] == "data/output/silver/hr_employees"
+    assert pipeline["artifacts"]["config_uri"] == "s3://{scripts_bucket}/configs/transformations.yaml"
+    assert pipeline["target"]["local_uri"] == "data/output/silver/hr_employees"
+    assert pipeline["target"]["target_uri"] == "s3://{silver_bucket}/hr_attrition/silver/hr_employees/"
 
 
 def test_transformations_config_declares_silver_to_gold_pipeline() -> None:
     config = load_yaml_file(resolve_project_path("src/configs/transformations.yaml"))
     pipeline = config["pipelines"]["silver_to_gold"]
 
-    assert pipeline["source"]["local_path"] == "data/output/silver/hr_employees"
-    assert pipeline["target"]["local_path"] == "data/output/gold/hr_attrition"
+    assert pipeline["source"]["local_uri"] == "data/output/silver/hr_employees"
+    assert pipeline["source"]["source_uri"] == "s3://{silver_bucket}/hr_attrition/silver/hr_employees/"
+    assert pipeline["target"]["local_uri"] == "data/output/gold/hr_attrition"
+    assert pipeline["target"]["target_uri"] == "s3://{gold_bucket}/hr_attrition/gold/hr_attrition/"
     assert pipeline["target"]["layout"] == "dataset"
     assert pipeline["target"]["write_mode"] == "overwrite_partition"
     assert pipeline["target"]["partition_style"] == "hive"
     assert pipeline["target"]["partition_by"] == ["year", "month", "day"]
     assert pipeline["artifacts"]["query_path"] == "src/queries/silver_to_gold.sql"
+
+
+def test_transformations_config_declares_landing_to_bronze_pipeline() -> None:
+    config = load_yaml_file(resolve_project_path("src/configs/transformations.yaml"))
+    pipeline = config["pipelines"]["landing_to_bronze"]
+
+    assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition.csv"
+    assert pipeline["source"]["source_uri"] == "s3://{bronze_bucket}/hr_attrition/landing/{source_filename}"
+    assert pipeline["target"]["target_uri"] == "s3://{bronze_bucket}/hr_attrition/raw/"
+    assert pipeline["target"]["write_mode"] == "immutable"
 
 
 def test_contract_matches_expected_silver_columns() -> None:
@@ -92,3 +110,13 @@ def test_contract_matches_expected_gold_columns() -> None:
     contract = load_yaml_file(resolve_project_path("src/configs/contracts.yaml"))
 
     assert expected_columns(contract, "gold_hr_attrition_fact") == EXPECTED_GOLD_COLUMNS
+
+
+def test_contract_declares_quality_metadata_for_aws_style_execution() -> None:
+    contract = load_yaml_file(resolve_project_path("src/configs/contracts.yaml"))
+    silver_contract = dataset_contract(contract, "silver_hr_employees")
+    gold_contract = dataset_contract(contract, "gold_hr_attrition_fact")
+
+    assert silver_contract["primary_key"] == ["employee_number"]
+    assert gold_contract["primary_key"] == ["employee_id"]
+    assert gold_contract["partition_columns"] == ["year", "month", "day"]

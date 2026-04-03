@@ -42,7 +42,7 @@ SELECT
     WHEN 3 THEN 'high'
     WHEN 4 THEN 'very_high'
   END AS work_life_balance_label,
-  CAST({{source_file}} AS VARCHAR) AS source_file,
+  source_file,
   CAST({{run_id}} AS VARCHAR) AS run_id,
   CAST({{processed_at_utc}} AS TIMESTAMP) AS processed_at_utc
 FROM silver_hr_employees

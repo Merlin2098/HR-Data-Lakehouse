@@ -12,11 +12,24 @@ locals {
 
   resource_tags = merge(local.mandatory_tags, var.common_tags)
 
-  bronze_to_silver_job_name = "${var.name_prefix}-${var.environment}-bronze-to-silver"
-  script_key                = "glue/bronze_to_silver.py"
-  config_key                = "configs/transformations.yaml"
-  contract_key              = "configs/contracts.yaml"
-  query_key                 = "queries/bronze_to_silver.sql"
+  landing_to_bronze_job_name = "${var.name_prefix}-${var.environment}-landing-to-bronze"
+  bronze_to_silver_job_name  = "${var.name_prefix}-${var.environment}-bronze-to-silver"
+  silver_to_gold_job_name    = "${var.name_prefix}-${var.environment}-silver-to-gold"
+
+  step_function_name = "${var.name_prefix}-${var.environment}-daily-medallion"
+  scheduler_name     = "${var.name_prefix}-${var.environment}-daily-trigger"
+
+  landing_log_group_name      = "/aws/glue/${local.landing_to_bronze_job_name}"
+  bronze_to_silver_log_group  = "/aws/glue/${local.bronze_to_silver_job_name}"
+  silver_to_gold_log_group    = "/aws/glue/${local.silver_to_gold_job_name}"
+  step_functions_log_group    = "/aws/vendedlogs/states/${local.step_function_name}"
+}
+
+module "kms" {
+  source      = "./modules/kms"
+  name_prefix = var.name_prefix
+  environment = var.environment
+  common_tags = local.resource_tags
 }
 
 module "s3" {
@@ -25,29 +38,100 @@ module "s3" {
   environment = var.environment
   region      = data.aws_region.current.name
   account_id  = data.aws_caller_identity.current.account_id
+  kms_key_arn = module.kms.kms_key_arn
   common_tags = local.resource_tags
 }
 
+module "assets" {
+  source              = "./modules/assets"
+  scripts_bucket_name = module.s3.scripts_bucket_name
+  common_tags         = local.resource_tags
+}
+
 module "iam" {
-  source            = "./modules/iam"
-  name_prefix       = var.name_prefix
-  environment       = var.environment
-  bronze_bucket_arn = module.s3.bronze_bucket_arn
-  silver_bucket_arn = module.s3.silver_bucket_arn
-  scripts_bucket_arn = module.s3.scripts_bucket_arn
-  common_tags       = local.resource_tags
+  source                    = "./modules/iam"
+  name_prefix               = var.name_prefix
+  environment               = var.environment
+  region                    = data.aws_region.current.name
+  account_id                = data.aws_caller_identity.current.account_id
+  bronze_bucket_arn         = module.s3.bronze_bucket_arn
+  silver_bucket_arn         = module.s3.silver_bucket_arn
+  gold_bucket_arn           = module.s3.gold_bucket_arn
+  scripts_bucket_arn        = module.s3.scripts_bucket_arn
+  athena_results_bucket_arn = module.s3.athena_results_bucket_arn
+  kms_key_arn               = module.kms.kms_key_arn
+  athena_workgroup_name     = var.athena_workgroup_name
+  common_tags               = local.resource_tags
 }
 
 module "glue" {
-  source         = "./modules/glue"
-  job_name       = local.bronze_to_silver_job_name
-  role_arn       = module.iam.glue_role_arn
-  script_bucket  = module.s3.scripts_bucket_name
-  script_key     = local.script_key
-  config_key     = local.config_key
-  contract_key   = local.contract_key
-  query_key      = local.query_key
-  bronze_bucket  = module.s3.bronze_bucket_name
-  silver_bucket  = module.s3.silver_bucket_name
-  common_tags    = local.resource_tags
+  source                         = "./modules/glue"
+  environment                    = var.environment
+  landing_to_bronze_job_name     = local.landing_to_bronze_job_name
+  bronze_to_silver_job_name      = local.bronze_to_silver_job_name
+  silver_to_gold_job_name        = local.silver_to_gold_job_name
+  role_arn                       = module.iam.glue_role_arn
+  script_bucket                  = module.s3.scripts_bucket_name
+  bronze_bucket                  = module.s3.bronze_bucket_name
+  silver_bucket                  = module.s3.silver_bucket_name
+  gold_bucket                    = module.s3.gold_bucket_name
+  config_key                     = module.assets.config_key
+  contract_key                   = module.assets.contract_key
+  landing_script_key             = module.assets.landing_to_bronze_script_key
+  bronze_to_silver_script_key    = module.assets.bronze_to_silver_script_key
+  silver_to_gold_script_key      = module.assets.silver_to_gold_script_key
+  bronze_to_silver_query_key     = module.assets.bronze_to_silver_query_key
+  silver_to_gold_query_key       = module.assets.silver_to_gold_query_key
+  dataset_source_filename        = var.dataset_source_filename
+  landing_log_group_name         = local.landing_log_group_name
+  bronze_to_silver_log_group_name = local.bronze_to_silver_log_group
+  silver_to_gold_log_group_name   = local.silver_to_gold_log_group
+  kms_key_arn                    = module.kms.kms_key_arn
+  common_tags                    = local.resource_tags
+}
+
+module "catalog" {
+  source                = "./modules/catalog"
+  database_name         = var.athena_database_name
+  silver_bucket_name    = module.s3.silver_bucket_name
+  gold_bucket_name      = module.s3.gold_bucket_name
+  year_projection_range = var.year_projection_range
+  common_tags           = local.resource_tags
+}
+
+module "athena" {
+  source               = "./modules/athena"
+  workgroup_name       = var.athena_workgroup_name
+  athena_results_bucket = module.s3.athena_results_bucket_name
+  kms_key_arn          = module.kms.kms_key_arn
+  common_tags          = local.resource_tags
+}
+
+module "orchestration" {
+  source                    = "./modules/orchestration"
+  state_machine_name        = local.step_function_name
+  scheduler_name            = local.scheduler_name
+  step_functions_role_arn   = module.iam.step_functions_role_arn
+  schedule_expression       = var.schedule_expression
+  landing_to_bronze_job_name = module.glue.landing_to_bronze_job_name
+  bronze_to_silver_job_name  = module.glue.bronze_to_silver_job_name
+  silver_to_gold_job_name    = module.glue.silver_to_gold_job_name
+  athena_workgroup_name     = module.athena.workgroup_name
+  athena_database_name      = module.catalog.database_name
+  gold_table_name           = module.catalog.gold_table_name
+  bronze_bucket_name        = module.s3.bronze_bucket_name
+  dataset_source_filename   = var.dataset_source_filename
+  step_functions_log_group_name = local.step_functions_log_group
+  athena_results_bucket_name    = module.s3.athena_results_bucket_name
+  kms_key_arn              = module.kms.kms_key_arn
+  common_tags              = local.resource_tags
+}
+
+module "observability" {
+  source             = "./modules/observability"
+  kms_key_arn        = module.kms.kms_key_arn
+  glue_job_names     = module.glue.job_names
+  state_machine_name = module.orchestration.state_machine_name
+  state_machine_arn  = module.orchestration.state_machine_arn
+  common_tags        = local.resource_tags
 }

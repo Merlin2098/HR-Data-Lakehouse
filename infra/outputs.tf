@@ -1,16 +1,31 @@
 output "bronze_bucket_name" {
-  description = "Phase-1 bronze bucket name."
+  description = "Bronze bucket name."
   value       = module.s3.bronze_bucket_name
 }
 
 output "silver_bucket_name" {
-  description = "Phase-1 silver bucket name."
+  description = "Silver bucket name."
   value       = module.s3.silver_bucket_name
 }
 
+output "gold_bucket_name" {
+  description = "Gold bucket name."
+  value       = module.s3.gold_bucket_name
+}
+
 output "scripts_bucket_name" {
-  description = "Phase-1 scripts bucket name."
+  description = "Scripts bucket name."
   value       = module.s3.scripts_bucket_name
+}
+
+output "athena_results_bucket_name" {
+  description = "Athena results bucket name."
+  value       = module.s3.athena_results_bucket_name
+}
+
+output "kms_key_arn" {
+  description = "Lakehouse KMS key ARN."
+  value       = module.kms.kms_key_arn
 }
 
 output "glue_role_arn" {
@@ -18,12 +33,27 @@ output "glue_role_arn" {
   value       = module.iam.glue_role_arn
 }
 
-output "glue_job_name" {
-  description = "Name of the bronze-to-silver Glue job."
-  value       = module.glue.job_name
+output "glue_job_names" {
+  description = "Glue job names for the medallion pipeline."
+  value       = module.glue.job_names
 }
 
-output "glue_script_location" {
-  description = "Expected S3 location of the bronze-to-silver Glue script."
-  value       = module.glue.script_location
+output "athena_workgroup_name" {
+  description = "Athena workgroup name."
+  value       = module.athena.workgroup_name
+}
+
+output "catalog_database_name" {
+  description = "Glue Catalog database name."
+  value       = module.catalog.database_name
+}
+
+output "state_machine_arn" {
+  description = "Step Functions state machine ARN."
+  value       = module.orchestration.state_machine_arn
+}
+
+output "scheduler_name" {
+  description = "EventBridge Scheduler name."
+  value       = module.orchestration.scheduler_name
 }

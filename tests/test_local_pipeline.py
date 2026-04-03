@@ -9,6 +9,7 @@ import pyarrow.dataset as ds
 
 from src.common.project_paths import resolve_project_path
 from src.glue.bronze_to_silver import run_pipeline as run_bronze_to_silver
+from src.glue.landing_to_bronze import run_pipeline as run_landing_to_bronze
 from src.glue.run_local_pipeline import run_pipeline as run_local_pipeline
 from src.glue.silver_to_gold import run_pipeline as run_silver_to_gold
 
@@ -87,6 +88,21 @@ def directory_partitioning():
     )
 
 
+def test_landing_to_bronze_promotes_daily_file_locally() -> None:
+    test_root = unique_test_root("landing_to_bronze")
+    bronze_root = test_root / "bronze" / "raw"
+
+    result = run_landing_to_bronze(
+        source_uri=str(resolve_project_path("data/HR-Employee-Attrition.csv")),
+        target_uri=str(bronze_root),
+        business_date_value="2026-04-03",
+    )
+
+    assert result["business_date"] == "2026-04-03"
+    assert result["source_file"] == "HR-Employee-Attrition.csv"
+    assert (bronze_root / "ingestion_date=2026-04-03" / "HR-Employee-Attrition.csv").exists()
+
+
 def test_bronze_to_silver_writes_expected_dataset_parquet() -> None:
     test_root = unique_test_root("bronze_to_silver")
     output_path = test_root / "hr_employees"
@@ -147,7 +163,7 @@ def test_silver_to_gold_writes_partitioned_parquet() -> None:
     assert first_row["year"] == 2026
     assert first_row["month"] == 4
     assert first_row["day"] == 3
-    assert first_row["source_file"] == "hr_employees"
+    assert first_row["source_file"] == "HR-Employee-Attrition.csv"
     assert first_row["run_id"]
     assert first_row["processed_at_utc"] is not None
 

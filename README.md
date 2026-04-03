@@ -1,13 +1,17 @@
 # HR Data Lakehouse
 
-This repository now contains the phase-1 infrastructure foundation plus a local bronze-to-silver-to-gold pipeline for HR attrition analytics.
+This repository now contains a local bronze-to-silver-to-gold pipeline plus an AWS-oriented infrastructure definition for a production-style HR attrition lakehouse MVP.
 
-The current scope is intentionally small:
+The current scope now covers:
 
-- Terraform infrastructure lives in `infra/`.
-- Phase 1 provisions three S3 buckets (`bronze`, `silver`, `scripts`).
-- A Glue execution role and one `bronze -> silver` Glue job are defined.
-- The local application pipeline lives in `src/` with externalized YAML, SQL, and data contracts.
+- Terraform infrastructure in `infra/`
+- S3 buckets for `bronze`, `silver`, `gold`, `scripts`, and `athena-results`
+- KMS-backed encryption and hardened bucket defaults
+- Glue jobs for `landing -> bronze`, `bronze -> silver`, and `silver -> gold`
+- Step Functions + EventBridge Scheduler orchestration
+- Glue Catalog + Athena workgroup for analytics
+- CloudWatch/SNS observability scaffolding
+- A local application pipeline in `src/` with externalized YAML, SQL, and data contracts
 
 ## Repository layout
 
@@ -39,7 +43,7 @@ The local pipeline uses:
 - `src/glue/silver_to_gold.py` for the gold stage
 - `src/glue/run_local_pipeline.py` for the full end-to-end local run
 
-By default, the pipeline reads `data/HR-Employee-Attrition.csv`, writes silver as a parquet dataset under `data/output/silver/hr_employees/`, and writes gold as a partitioned parquet dataset under `data/output/gold/hr_attrition/` using Hive-style folders such as `.../year=2026/month=4/day=3/`.
+By default, the local pipeline reads `data/HR-Employee-Attrition.csv`, writes silver as a parquet dataset under `data/output/silver/hr_employees/`, and writes gold as a partitioned parquet dataset under `data/output/gold/hr_attrition/` using Hive-style folders such as `.../year=2026/month=4/day=3/`.
 Gold uses a daily partition overwrite model, so each run refreshes only the partition for that processing day instead of rewriting the full dataset.
 
 Both silver and gold now include technical metadata to simulate production-style lineage:
@@ -49,6 +53,13 @@ Both silver and gold now include technical metadata to simulate production-style
 - `processed_at_utc`
 
 Gold also includes `ingestion_date` alongside the `year/month/day` partition columns.
+
+The shared config in `src/configs/transformations.yaml` now supports both:
+
+- `execution_mode: local` with `engine: duckdb`
+- `execution_mode: aws` with `engine: glue_spark`
+
+AWS jobs are designed to read config, contracts, and SQL assets from the `scripts` bucket and operate on S3 URIs directly.
 
 Run it with the project virtual environment:
 
@@ -78,10 +89,20 @@ Run the unit tests with:
 
 ## Terraform notes
 
-Terraform phase-1 configuration is under `infra/` and is organized around three modules:
+The Terraform configuration under `infra/` now models an AWS production-style MVP with these modules:
 
-- `s3` for bronze, silver, and scripts buckets
-- `iam` for the Glue execution role and policy
-- `glue` for the single `bronze_to_silver` job
+- `kms`
+- `s3`
+- `assets`
+- `iam`
+- `glue`
+- `catalog`
+- `athena`
+- `orchestration`
+- `observability`
 
-Script, SQL, and config uploads to S3 are intentionally deferred to the next phase so phase 1 stays focused on the minimum runnable foundation.
+Glue assets are uploaded to S3 through Terraform, and the state machine orchestrates the daily medallion flow:
+
+`landing_to_bronze -> bronze_to_silver -> silver_to_gold -> validate_catalog`
+
+I did not run `terraform validate` or any `terraform plan/apply` commands from this session, because this repository explicitly requires user authorization before executing Terraform.

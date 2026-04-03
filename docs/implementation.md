@@ -1,414 +1,207 @@
-# 🚀 AWS Lakehouse (Terraform) — Implementation Plan (Execution-First)
+# AWS Lakehouse (Terraform) - Implementation Status
 
 ---
 
-# 🎯 Objective
+# Objective
 
-Build a **serverless Lakehouse architecture in AWS** using Terraform, following:
+Build a serverless AWS lakehouse for HR attrition analytics using:
 
-* Medallion Architecture (Bronze → Silver → Gold)
-* Config-driven pipelines (YAML + SQL)
-* Execution-first approach (run early, iterate fast)
-* KISS principle (simple, explainable, production-like)
-* Tag for every resource: `HR_LakeHouse_Project`
-
----
-
-# 🧠 Core Principles
-
-> ❗ If it doesn’t run, it doesn’t exist.
-
-* Infrastructure defines the system
-* Code defines the behavior
-* Both must be versioned and deployed together
+- Medallion Architecture (`landing -> bronze -> silver -> gold`)
+- Config-driven pipelines (`YAML + SQL + Python`)
+- Terraform as the source of truth for infrastructure and asset deployment
+- A local execution mode for development plus an AWS-oriented execution mode for Glue
 
 ---
 
-# 🧱 0. Scope (Phase-Based)
+# Current Status Summary
 
-## Phase 1 (Execution First) - DONE
+The project is no longer only in the initial Terraform demo stage.
 
-Minimal working pipeline:
+Current repo status:
 
-* S3 (bronze, silver, scripts)
-* IAM (Glue role)
-* AWS Glue (1 job)
-* YAML + SQL + Python working end-to-end
+- Local pipeline implemented and validated end to end
+- AWS-oriented runtime path implemented in code
+- Terraform expanded from phase-1 minimal infra to an AWS-style MVP definition
+- Terraform has not been validated or applied from this session
+- AWS execution has not been validated yet
 
-Status:
-
-* Completed in repository structure and local scaffold
-* Terraform reorganized under `infra/` with `s3`, `iam`, and `glue` modules
-* Local `bronze_to_silver` pipeline implemented with external YAML, SQL, and contract files
+This means the repository is ahead in implementation design, but AWS deployment and runtime verification are still pending.
 
 ---
 
-## Phase 2 (Expansion)
+# Phase Status
 
-* S3 gold layer
-* Athena
-* Additional Glue jobs
-* Monitoring (CloudWatch)
-* Budgets
+## Phase 0 - Local Cloud-Ready - DONE
 
----
+Completed in the repository:
 
-# 📁 1. Project Structure
+- Project structure standardized under `infra/`, `src/`, `tests/`, and `docs/`
+- Business logic externalized into YAML, SQL, and Python
+- Local execution works with DuckDB
+- Silver and gold are materialized as Parquet datasets
+- Data contracts and runtime validation exist
 
-```
-lakehouse-aws/
-│
-├── infra/
-│   ├── main.tf
-│   ├── provider.tf
-│   ├── variables.tf
-│   ├── outputs.tf
-│   ├── terraform.tfvars
-│
-│   ├── modules/
-│   │   ├── s3/
-│   │   ├── iam/
-│   │   ├── glue/
-│
-│   └── env/
-│       ├── dev.tfvars
-│       ├── prod.tfvars
-│
-├── src/
-│   ├── glue/
-│   │   ├── bronze_to_silver.py
-│   │   ├── silver_to_gold.py
-│
-│   ├── configs/
-│   │   ├── transformations.yaml
-│   │   ├── contracts.yaml
-│
-│   ├── queries/
-│   │   ├── bronze_to_silver.sql
-│   │   ├── silver_to_gold.sql
-│
-│   ├── common/
-│       ├── s3_utils.py
-│       ├── config_loader.py
-│       ├── query_loader.py
-│
-├── tests/
-│   ├── test_configs.py
-│   ├── test_queries.py
-│
-└── README.md
-```
+Validation status:
+
+- Local tests pass
+- Local end-to-end execution passes
 
 ---
 
-# 🥇 2. Phase 0 — Local Cloud-Ready
+## Phase 1 - Minimal Terraform Infrastructure - DONE
 
-## 🎯 Objective
+Completed in the repository:
 
-Prepare code to run in AWS without major changes.
+- Terraform migrated under `infra/`
+- Base modules for `s3`, `iam`, and `glue` were created
+- Initial AWS foundation was replaced by a more complete AWS-style structure
 
----
+Important note:
 
-## Tasks
-
-### 2.1 Standardize structure
-
-* Separate:
-  * configs (YAML)
-  * queries (SQL)
-  * scripts (Python)
+- This phase is superseded by the broader Terraform implementation now present in the repo
 
 ---
 
-### 2.2 Script responsibilities
+## Phase 2 - Code Deployment via Terraform - IMPLEMENTED IN REPO
 
-Each script must:
+Completed in code/IaC:
 
-* Load YAML config
-* Load SQL query
-* Execute transformation
-* Write output as Parquet
+- Terraform module for asset deployment exists
+- Glue scripts, YAML configs, SQL queries, and contracts are defined to be uploaded to the `scripts` bucket
+- Asset versioning is driven by Terraform file hashes
 
----
+Pending validation:
 
-### 2.3 Remove hardcoding
-
-❌ Local paths
-✔️ Parameterized paths
-
-Example:
-
-```python
-CONFIG_PATH = "configs/transformations.yaml"
-QUERY_PATH = "queries/bronze_to_silver.sql"
-```
+- `terraform validate`
+- `terraform plan`
+- real upload of assets to AWS through `terraform apply`
 
 ---
 
-## ✅ Definition of Done
+## Phase 3 - AWS Pipeline Execution - IMPLEMENTED IN CODE, NOT VALIDATED IN AWS
 
-* Script runs locally
-* YAML and SQL externalized
-* Output generated in Parquet
+Completed in code:
 
----
+- Runtime supports `execution_mode: local | aws`
+- Runtime supports `engine: duckdb | glue_spark`
+- Glue-oriented scripts accept AWS-style runtime arguments
+- `landing_to_bronze`, `bronze_to_silver`, and `silver_to_gold` jobs are modeled
+- Bronze raw ingestion is designed as immutable and date-based
 
-# 🥈 3. Phase 1 — Minimal Terraform Infrastructure - DONE
+Pending AWS validation:
 
-## 🎯 Objective
-
-Deploy minimal environment to run one pipeline.
-
----
-
-## Resources
-
-### S3
-
-Create buckets:
-
-* bronze
-* silver
-* scripts
+- Run the Glue jobs in AWS
+- Verify S3 writes for bronze, silver, and gold
+- Verify CloudWatch logs and job arguments in real execution
 
 ---
 
-### IAM
+## Phase 4 - AWS MVP Expansion - IMPLEMENTED IN REPO, NOT DEPLOYED
 
-Create role:
+Completed in code/IaC:
 
-* Trusted entity: Glue
-* Permissions:
-  * S3 read/write
-  * CloudWatch logs
+- S3 expansion for `gold` and `athena-results`
+- KMS module and encrypted bucket defaults
+- Glue Catalog definitions for silver and gold
+- Athena workgroup definition
+- Step Functions orchestration
+- EventBridge Scheduler trigger
+- CloudWatch/SNS observability scaffolding
 
----
+Pending AWS validation:
 
-### Glue
-
-Create 1 job:
-
-* bronze → silver
-
----
-
-## ❗ Do NOT implement yet
-
-* Athena
-* Monitoring
-* Budgets
-* Step Functions
+- Deploy Terraform resources
+- Validate state machine execution
+- Validate Athena queries against the catalog
+- Validate alarms and operational logs
 
 ---
 
-## ✅ Definition of Done
+# Effective Project Phase
 
-* Terraform layout migrated to `infra/`
-* Buckets, Glue role, and Glue job defined in modular Terraform
-* Local scaffold for YAML + SQL + Python verified end-to-end
+From a repository implementation perspective, the project is currently in:
 
----
+> Phase 4 implemented in code, pending infrastructure validation and AWS execution
 
-# 🥉 4. Phase 2 — Code Deployment via Terraform
+From an operational perspective, the project is currently in:
 
-## 🎯 Objective
+> Phase 0 fully validated locally, with AWS phases still pending deployment and runtime verification
 
-Ensure code is versioned and deployed automatically.
+Both statements are true and should be used carefully depending on whether we are speaking about:
 
----
-
-## Implementation
-
-### Upload Glue script
-
-```hcl
-resource "aws_s3_object" "glue_script" {
-  bucket = var.scripts_bucket
-  key    = "glue/bronze_to_silver.py"
-  source = "${path.module}/../../src/glue/bronze_to_silver.py"
-
-  etag = filemd5("${path.module}/../../src/glue/bronze_to_silver.py")
-}
-```
+- repo implementation status, or
+- deployed production status
 
 ---
 
-### Upload config
+# Current Architecture Snapshot
 
-```hcl
-resource "aws_s3_object" "config_file" {
-  bucket = var.scripts_bucket
-  key    = "configs/transformations.yaml"
-  source = "${path.module}/../../src/configs/transformations.yaml"
-}
-```
+Implemented locally and in code:
 
----
+- `landing -> bronze -> silver -> gold` medallion flow
+- Silver and gold contracts with technical metadata
+- Gold partitioning in Hive-style format
+- Contract-driven runtime quality checks
+- Dual local/AWS configuration through `transformations.yaml`
 
-### Upload query
+Implemented in Terraform definitions:
 
-```hcl
-resource "aws_s3_object" "query_file" {
-  bucket = var.scripts_bucket
-  key    = "queries/bronze_to_silver.sql"
-  source = "${path.module}/../../src/queries/bronze_to_silver.sql"
-}
-```
+- `kms`
+- `s3`
+- `assets`
+- `iam`
+- `glue`
+- `catalog`
+- `athena`
+- `orchestration`
+- `observability`
 
----
+Not yet verified in AWS:
 
-## ✅ Definition of Done
-
-* Scripts uploaded to S3
-* Configs and queries available in S3
-* Changes tracked via Terraform
-
----
-
-# 🏁 5. Phase 3 — First Pipeline Execution
-
-## 🎯 Objective
-
-Run first pipeline end-to-end in AWS.
+- actual Terraform deployment
+- actual Glue runs
+- actual Step Functions execution
+- actual Athena validation
 
 ---
 
-## Flow
+# Definition of Done by Status Type
 
-1. Upload data → S3 bronze
-2. Run Glue Job
-3. Script reads:
-   * YAML from S3
-   * SQL from S3
-4. Output written → S3 silver (Parquet)
+## Done in Repository
 
----
+Use this when the capability exists in code or Terraform:
 
-## Validation
+- local runtime implemented
+- AWS runtime path implemented
+- Terraform modules defined
+- orchestration and catalog modeled
 
-* Output exists in S3
-* No permission errors
-* Logs visible in CloudWatch
+## Done in AWS
 
----
+Use this only after real validation:
 
-## ✅ Definition of Done
+- Terraform successfully validates and applies
+- Assets exist in S3
+- Glue jobs execute successfully
+- Step Functions runs daily pipeline successfully
+- Athena queries the published datasets
+- Monitoring signals failures correctly
 
-* Glue job runs successfully
-* Data transformed correctly
-* End-to-end pipeline validated
-
----
-
-# 🚀 6. Phase 4 — Expansion
-
-## Add components
+The project has reached the first status, but not the second one yet.
 
 ---
 
-### S3
+# Next Real Step
 
-* gold bucket
+The next practical step is no longer to design more infrastructure in code.
 
----
+The next real milestone is:
 
-### Glue
-
-* silver → gold job
-
----
-
-### Athena
-
-* Workgroup
-* Queries on gold layer
-
----
-
-### Monitoring
-
-* CloudWatch logs
-
----
-
-### Budgets
-
-* Cost alerts
-
----
-
-## ✅ Definition of Done
-
-* Full Medallion pipeline operational
-* Athena queries working
-* Cost visibility enabled
-
----
-
-# 🔗 7. Execution Flow Summary
-
-```
-Local validated logic
-        ↓
-Terraform minimal infra
-        ↓
-Code deployed to S3
-        ↓
-Glue job execution
-        ↓
-Validation
-        ↓
-Scale architecture
-```
-
----
-
-# 🔥 Key Rules
-
----
-
-## Rule 1 — Start small
-
-> One working pipeline > full architecture not running
-
----
-
-## Rule 2 — Separate concerns
-
-* Terraform → infrastructure
-* Python → execution
-* YAML → business logic
-* SQL → transformations
-
----
-
-## Rule 3 — Avoid drift
-
-* No manual uploads to S3
-* Everything via Terraform
-
----
-
-## Rule 4 — Iterate fast
-
-* Deploy → run → fix → repeat
-
----
-
-# 🧠 Final Insight
-
-This project is not about AWS services.
-
-It is about building:
-
-> A reproducible, config-driven, cloud-native data platform
-
----
-
-# 🚀 Next Step
-
-* Implement Phase 2 code deployment via Terraform
-* Upload Glue assets to S3 through IaC
-* Execute the first Glue job in AWS
+1. run `terraform validate` on `infra/`
+2. run a `terraform plan` for `dev`
+3. deploy the AWS MVP resources
+4. upload a daily source file to landing
+5. execute the Step Functions workflow in AWS
+6. verify bronze, silver, gold, catalog, Athena, and logs end to end
 
 ---

@@ -18,6 +18,11 @@ variable "account_id" {
   type        = string
 }
 
+variable "kms_key_arn" {
+  description = "KMS key ARN used for default bucket encryption."
+  type        = string
+}
+
 variable "common_tags" {
   description = "Tags applied to every bucket."
   type        = map(string)

@@ -5,6 +5,8 @@
 crash.log
 .terraform.lock.hcl
 *.tfvars
+!infra/env/dev.tfvars
+!infra/env/prod.tfvars
 
 # Local .env files
 .env
