@@ -9,7 +9,7 @@ import pyarrow.dataset as ds
 
 from src.common.project_paths import resolve_project_path
 from src.glue.bronze_to_silver import run_pipeline as run_bronze_to_silver
-from src.glue.landing_to_bronze import run_pipeline as run_landing_to_bronze
+from src.glue.landing_to_bronze import resolve_source_filename, run_pipeline as run_landing_to_bronze
 from src.glue.run_local_pipeline import run_pipeline as run_local_pipeline
 from src.glue.silver_to_gold import run_pipeline as run_silver_to_gold
 
@@ -101,6 +101,13 @@ def test_landing_to_bronze_promotes_daily_file_locally() -> None:
     assert result["business_date"] == "2026-04-03"
     assert result["source_file"] == "HR-Employee-Attrition.csv"
     assert (bronze_root / "ingestion_date=2026-04-03" / "HR-Employee-Attrition.csv").exists()
+
+
+def test_landing_to_bronze_derives_source_filename_from_event_uri() -> None:
+    assert (
+        resolve_source_filename("s3://demo-bronze/hr_attrition/landing/HR-Employee-Attrition.csv")
+        == "HR-Employee-Attrition.csv"
+    )
 
 
 def test_bronze_to_silver_writes_expected_dataset_parquet() -> None:

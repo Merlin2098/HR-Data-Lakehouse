@@ -3,18 +3,18 @@ variable "state_machine_name" {
   type        = string
 }
 
-variable "scheduler_name" {
-  description = "EventBridge Scheduler name."
+variable "event_rule_name" {
+  description = "EventBridge rule name for S3 object created events."
+  type        = string
+}
+
+variable "event_target_id" {
+  description = "EventBridge target identifier for the Step Functions trigger."
   type        = string
 }
 
 variable "step_functions_role_arn" {
   description = "Execution role ARN for Step Functions."
-  type        = string
-}
-
-variable "schedule_expression" {
-  description = "Scheduler expression used to trigger the pipeline daily."
   type        = string
 }
 
@@ -53,8 +53,13 @@ variable "bronze_bucket_name" {
   type        = string
 }
 
-variable "dataset_source_filename" {
-  description = "Expected landing filename."
+variable "landing_prefix" {
+  description = "Landing key prefix monitored for new objects."
+  type        = string
+}
+
+variable "landing_suffix" {
+  description = "Landing file suffix monitored for new objects."
   type        = string
 }
 

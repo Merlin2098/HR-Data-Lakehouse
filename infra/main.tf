@@ -16,8 +16,9 @@ locals {
   bronze_to_silver_job_name  = "${var.name_prefix}-${var.environment}-bronze-to-silver"
   silver_to_gold_job_name    = "${var.name_prefix}-${var.environment}-silver-to-gold"
 
-  step_function_name = "${var.name_prefix}-${var.environment}-daily-medallion"
-  scheduler_name     = "${var.name_prefix}-${var.environment}-daily-trigger"
+  step_function_name = "${var.name_prefix}-${var.environment}-event-medallion"
+  event_rule_name    = "${var.name_prefix}-${var.environment}-landing-created"
+  event_target_id    = "${var.name_prefix}-${var.environment}-start-medallion"
 
   landing_log_group_name      = "/aws/glue/${local.landing_to_bronze_job_name}"
   bronze_to_silver_log_group  = "/aws/glue/${local.bronze_to_silver_job_name}"
@@ -82,7 +83,6 @@ module "glue" {
   silver_to_gold_script_key      = module.assets.silver_to_gold_script_key
   bronze_to_silver_query_key     = module.assets.bronze_to_silver_query_key
   silver_to_gold_query_key       = module.assets.silver_to_gold_query_key
-  dataset_source_filename        = var.dataset_source_filename
   landing_log_group_name         = local.landing_log_group_name
   bronze_to_silver_log_group_name = local.bronze_to_silver_log_group
   silver_to_gold_log_group_name   = local.silver_to_gold_log_group
@@ -110,9 +110,9 @@ module "athena" {
 module "orchestration" {
   source                    = "./modules/orchestration"
   state_machine_name        = local.step_function_name
-  scheduler_name            = local.scheduler_name
+  event_rule_name           = local.event_rule_name
+  event_target_id           = local.event_target_id
   step_functions_role_arn   = module.iam.step_functions_role_arn
-  schedule_expression       = var.schedule_expression
   landing_to_bronze_job_name = module.glue.landing_to_bronze_job_name
   bronze_to_silver_job_name  = module.glue.bronze_to_silver_job_name
   silver_to_gold_job_name    = module.glue.silver_to_gold_job_name
@@ -120,7 +120,8 @@ module "orchestration" {
   athena_database_name      = module.catalog.database_name
   gold_table_name           = module.catalog.gold_table_name
   bronze_bucket_name        = module.s3.bronze_bucket_name
-  dataset_source_filename   = var.dataset_source_filename
+  landing_prefix            = var.landing_prefix
+  landing_suffix            = var.landing_suffix
   step_functions_log_group_name = local.step_functions_log_group
   athena_results_bucket_name    = module.s3.athena_results_bucket_name
   kms_key_arn              = module.kms.kms_key_arn

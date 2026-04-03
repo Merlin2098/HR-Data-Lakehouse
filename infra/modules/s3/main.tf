@@ -85,6 +85,11 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "buckets" {
   }
 }
 
+resource "aws_s3_bucket_notification" "bronze_eventbridge" {
+  bucket      = aws_s3_bucket.bronze.id
+  eventbridge = true
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "athena_results" {
   bucket = aws_s3_bucket.athena_results.id
 

@@ -41,6 +41,14 @@ def build_bronze_raw_target(target_root: str, business_date_value: str | None, s
     return str(Path(resolve_resource_reference(target_root)) / f"ingestion_date={business_date}" / source_filename)
 
 
+def resolve_source_filename(source_uri: str, source_filename: str | None = None) -> str:
+    candidate = (source_filename or source_uri).rstrip("/")
+    if is_s3_uri(candidate):
+        _, key = split_s3_uri(candidate)
+        return key.rsplit("/", 1)[-1]
+    return Path(candidate).name
+
+
 def run_pipeline(
     *,
     source_uri: str,
@@ -52,7 +60,7 @@ def run_pipeline(
     if not resource_exists(resolved_source):
         raise FileNotFoundError(f"Landing source was not found: {resolved_source}")
 
-    effective_source_filename = source_filename or Path(str(resolved_source).rstrip("/")).name
+    effective_source_filename = resolve_source_filename(str(resolved_source), source_filename)
     final_target_uri = build_bronze_raw_target(target_uri, business_date_value, effective_source_filename)
 
     if not resource_exists(final_target_uri):

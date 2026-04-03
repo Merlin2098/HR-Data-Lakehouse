@@ -78,11 +78,6 @@ variable "silver_to_gold_query_key" {
   type        = string
 }
 
-variable "dataset_source_filename" {
-  description = "Expected filename for the daily dataset."
-  type        = string
-}
-
 variable "landing_log_group_name" {
   description = "CloudWatch log group name for the landing job."
   type        = string

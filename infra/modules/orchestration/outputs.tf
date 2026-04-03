@@ -8,7 +8,12 @@ output "state_machine_name" {
   value       = aws_sfn_state_machine.daily_medallion.name
 }
 
-output "scheduler_name" {
-  description = "EventBridge Scheduler name."
-  value       = aws_scheduler_schedule.daily_pipeline.name
+output "event_rule_name" {
+  description = "EventBridge rule name."
+  value       = aws_cloudwatch_event_rule.landing_object_created.name
+}
+
+output "event_target_id" {
+  description = "EventBridge target identifier."
+  value       = aws_cloudwatch_event_target.start_state_machine.target_id
 }

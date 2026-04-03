@@ -8,7 +8,7 @@ The current scope now covers:
 - S3 buckets for `bronze`, `silver`, `gold`, `scripts`, and `athena-results`
 - KMS-backed encryption and hardened bucket defaults
 - Glue jobs for `landing -> bronze`, `bronze -> silver`, and `silver -> gold`
-- Step Functions + EventBridge Scheduler orchestration
+- Step Functions orchestration triggered by `S3 Object Created` events through EventBridge
 - Glue Catalog + Athena workgroup for analytics
 - CloudWatch/SNS observability scaffolding
 - A local application pipeline in `src/` with externalized YAML, SQL, and data contracts
@@ -101,7 +101,7 @@ The Terraform configuration under `infra/` now models an AWS production-style MV
 - `orchestration`
 - `observability`
 
-Glue assets are uploaded to S3 through Terraform, and the state machine orchestrates the daily medallion flow:
+Glue assets are uploaded to S3 through Terraform, and the state machine orchestrates the medallion flow when a new CSV lands in the bronze landing prefix:
 
 `landing_to_bronze -> bronze_to_silver -> silver_to_gold -> validate_catalog`
 

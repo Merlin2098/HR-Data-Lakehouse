@@ -16,7 +16,7 @@ pipelines:
       dataset_name: landing_hr_employee_attrition
       format: csv
       local_uri: data/HR-Employee-Attrition.csv
-      source_uri: s3://{bronze_bucket}/hr_attrition/landing/{source_filename}
+      source_uri: s3://{bronze_bucket}/hr_attrition/landing/
     target:
       layer: bronze
       dataset_name: bronze_hr_employee_attrition

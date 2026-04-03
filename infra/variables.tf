@@ -22,12 +22,6 @@ variable "name_prefix" {
   default     = "hr-lakehouse"
 }
 
-variable "schedule_expression" {
-  description = "EventBridge Scheduler cron expression for the daily pipeline."
-  type        = string
-  default     = "cron(0 11 * * ? *)"
-}
-
 variable "athena_database_name" {
   description = "Glue Catalog database and Athena database name."
   type        = string
@@ -40,10 +34,16 @@ variable "athena_workgroup_name" {
   default     = "hr-attrition-analytics"
 }
 
-variable "dataset_source_filename" {
-  description = "Expected filename for the daily HR attrition dataset."
+variable "landing_prefix" {
+  description = "S3 prefix monitored for landing file arrivals."
   type        = string
-  default     = "HR-Employee-Attrition.csv"
+  default     = "hr_attrition/landing/"
+}
+
+variable "landing_suffix" {
+  description = "Filename suffix accepted for landing file arrivals."
+  type        = string
+  default     = ".csv"
 }
 
 variable "year_projection_range" {

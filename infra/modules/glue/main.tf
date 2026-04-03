@@ -7,7 +7,6 @@ locals {
   bronze_query_uri            = "s3://${var.script_bucket}/${var.bronze_to_silver_query_key}"
   gold_query_uri              = "s3://${var.script_bucket}/${var.silver_to_gold_query_key}"
 
-  landing_source_uri          = "s3://${var.bronze_bucket}/hr_attrition/landing/${var.dataset_source_filename}"
   bronze_raw_root_uri         = "s3://${var.bronze_bucket}/hr_attrition/raw/"
   silver_dataset_uri          = "s3://${var.silver_bucket}/hr_attrition/silver/hr_employees/"
   gold_dataset_uri            = "s3://${var.gold_bucket}/hr_attrition/gold/hr_attrition/"
@@ -52,11 +51,7 @@ resource "aws_glue_job" "landing_to_bronze" {
   tags         = var.common_tags
 
   default_arguments = {
-    "--config-uri"        = local.config_uri
-    "--contracts-uri"     = local.contract_uri
-    "--source-uri"        = local.landing_source_uri
     "--target-uri"        = local.bronze_raw_root_uri
-    "--source-filename"   = var.dataset_source_filename
   }
 }
 
@@ -89,7 +84,6 @@ resource "aws_glue_job" "bronze_to_silver" {
     "--query-uri"                        = local.bronze_query_uri
     "--source-uri"                       = local.bronze_raw_root_uri
     "--target-uri"                       = local.silver_dataset_uri
-    "--source-filename"                  = var.dataset_source_filename
     "--execution-mode"                   = "aws"
     "--engine"                           = "glue_spark"
     "--enable-continuous-cloudwatch-log" = "true"

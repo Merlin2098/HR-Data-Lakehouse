@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from src.common.config_loader import load_yaml_file
 from src.common.contract_loader import dataset_contract, expected_columns
 from src.common.project_paths import resolve_project_path
@@ -95,7 +97,7 @@ def test_transformations_config_declares_landing_to_bronze_pipeline() -> None:
     pipeline = config["pipelines"]["landing_to_bronze"]
 
     assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition.csv"
-    assert pipeline["source"]["source_uri"] == "s3://{bronze_bucket}/hr_attrition/landing/{source_filename}"
+    assert pipeline["source"]["source_uri"] == "s3://{bronze_bucket}/hr_attrition/landing/"
     assert pipeline["target"]["target_uri"] == "s3://{bronze_bucket}/hr_attrition/raw/"
     assert pipeline["target"]["write_mode"] == "immutable"
 
@@ -120,3 +122,19 @@ def test_contract_declares_quality_metadata_for_aws_style_execution() -> None:
     assert silver_contract["primary_key"] == ["employee_number"]
     assert gold_contract["primary_key"] == ["employee_id"]
     assert gold_contract["partition_columns"] == ["year", "month", "day"]
+
+
+def test_event_driven_orchestration_replaces_scheduler_resources() -> None:
+    orchestration_tf = Path(resolve_project_path("infra/modules/orchestration/main.tf")).read_text(encoding="utf-8")
+
+    assert "aws_scheduler_schedule" not in orchestration_tf
+    assert 'detail-type = ["Object Created"]' in orchestration_tf
+    assert 'wildcard = local.landing_object_pattern' in orchestration_tf
+    assert 'states:StartExecution' in orchestration_tf
+
+
+def test_bronze_bucket_forwards_events_to_eventbridge() -> None:
+    s3_tf = Path(resolve_project_path("infra/modules/s3/main.tf")).read_text(encoding="utf-8")
+
+    assert 'resource "aws_s3_bucket_notification" "bronze_eventbridge"' in s3_tf
+    assert "eventbridge = true" in s3_tf

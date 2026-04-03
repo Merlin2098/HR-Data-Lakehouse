@@ -53,7 +53,7 @@ output "state_machine_arn" {
   value       = module.orchestration.state_machine_arn
 }
 
-output "scheduler_name" {
-  description = "EventBridge Scheduler name."
-  value       = module.orchestration.scheduler_name
+output "event_rule_name" {
+  description = "EventBridge rule name that triggers the state machine from S3 events."
+  value       = module.orchestration.event_rule_name
 }

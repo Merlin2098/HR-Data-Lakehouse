@@ -1,24 +1,84 @@
 locals {
-  scheduler_input = {
-    business_date   = "<aws.scheduler.scheduled-time>"
-    run_id          = "<aws.scheduler.execution-id>"
-    source_uri      = "s3://${var.bronze_bucket_name}/hr_attrition/landing/${var.dataset_source_filename}"
-    source_filename = var.dataset_source_filename
-  }
+  landing_object_pattern = "${var.landing_prefix}*${var.landing_suffix}"
+
+  event_pattern = jsonencode({
+    source      = ["aws.s3"]
+    detail-type = ["Object Created"]
+    detail = {
+      bucket = {
+        name = [var.bronze_bucket_name]
+      }
+      object = {
+        key = [
+          {
+            wildcard = local.landing_object_pattern
+          }
+        ]
+      }
+    }
+  })
 
   state_machine_definition = jsonencode({
-    Comment = "Daily HR lakehouse medallion pipeline"
-    StartAt = "PromoteLandingToBronze"
+    Comment = "Event-driven HR lakehouse medallion pipeline"
+    StartAt = "DetectInputShape"
     States = {
+      DetectInputShape = {
+        Type = "Choice"
+        Choices = [
+          {
+            Variable  = "$.detail.bucket.name"
+            IsPresent = true
+            Next      = "NormalizeS3Event"
+          },
+          {
+            Variable  = "$.bucket_name"
+            IsPresent = true
+            Next      = "NormalizeManualInput"
+          },
+        ]
+        Default = "InvalidInput"
+      }
+      NormalizeS3Event = {
+        Type = "Pass"
+        Parameters = {
+          bucket_name.$     = "$.detail.bucket.name"
+          object_key.$      = "$.detail.object.key"
+          event_time.$      = "$.time"
+          business_date.$   = "States.ArrayGetItem(States.StringSplit($.time, 'T'), 0)"
+          run_id.$          = "$.id"
+          source_uri.$      = "States.Format('s3://{}/{}', $.detail.bucket.name, $.detail.object.key)"
+          source_filename.$ = "States.ArrayGetItem(States.StringSplit($.detail.object.key, '/'), 2)"
+        }
+        ResultPath = "$"
+        Next       = "PromoteLandingToBronze"
+      }
+      NormalizeManualInput = {
+        Type = "Pass"
+        Parameters = {
+          bucket_name.$     = "$.bucket_name"
+          object_key.$      = "$.object_key"
+          source_uri.$      = "$.source_uri"
+          source_filename.$ = "$.source_filename"
+          business_date.$   = "$.business_date"
+          run_id.$          = "$.run_id"
+          event_time.$      = "$.event_time"
+        }
+        ResultPath = "$"
+        Next       = "PromoteLandingToBronze"
+      }
+      InvalidInput = {
+        Type  = "Fail"
+        Error = "InvalidPipelineInput"
+        Cause = "Expected either an S3 EventBridge payload or a normalized manual execution payload."
+      }
       PromoteLandingToBronze = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
           JobName = var.landing_to_bronze_job_name
           Arguments = {
-            "--business-date.$" = "$.business_date"
-            "--run-id.$"        = "$.run_id"
-            "--source-uri.$"    = "$.source_uri"
+            "--business-date.$"  = "$.business_date"
+            "--source-uri.$"     = "$.source_uri"
             "--source-filename.$" = "$.source_filename"
           }
         }
@@ -30,8 +90,8 @@ locals {
         Parameters = {
           JobName = var.bronze_to_silver_job_name
           Arguments = {
-            "--business-date.$" = "$.business_date"
-            "--run-id.$"        = "$.run_id"
+            "--business-date.$"  = "$.business_date"
+            "--run-id.$"         = "$.run_id"
             "--source-filename.$" = "$.source_filename"
           }
         }
@@ -89,20 +149,20 @@ resource "aws_sfn_state_machine" "daily_medallion" {
   }
 }
 
-data "aws_iam_policy_document" "scheduler_assume_role" {
+data "aws_iam_policy_document" "eventbridge_assume_role" {
   statement {
     effect = "Allow"
 
     principals {
       type        = "Service"
-      identifiers = ["scheduler.amazonaws.com"]
+      identifiers = ["events.amazonaws.com"]
     }
 
     actions = ["sts:AssumeRole"]
   }
 }
 
-data "aws_iam_policy_document" "scheduler_start_execution" {
+data "aws_iam_policy_document" "eventbridge_start_execution" {
   statement {
     effect = "Allow"
     actions = [
@@ -112,29 +172,27 @@ data "aws_iam_policy_document" "scheduler_start_execution" {
   }
 }
 
-resource "aws_iam_role" "scheduler" {
-  name               = "${var.scheduler_name}-role"
-  assume_role_policy = data.aws_iam_policy_document.scheduler_assume_role.json
+resource "aws_iam_role" "eventbridge_trigger" {
+  name               = "${var.event_rule_name}-role"
+  assume_role_policy = data.aws_iam_policy_document.eventbridge_assume_role.json
   tags               = var.common_tags
 }
 
-resource "aws_iam_role_policy" "scheduler_start_execution" {
-  name   = "${var.scheduler_name}-start-execution"
-  role   = aws_iam_role.scheduler.id
-  policy = data.aws_iam_policy_document.scheduler_start_execution.json
+resource "aws_iam_role_policy" "eventbridge_start_execution" {
+  name   = "${var.event_rule_name}-start-execution"
+  role   = aws_iam_role.eventbridge_trigger.id
+  policy = data.aws_iam_policy_document.eventbridge_start_execution.json
 }
 
-resource "aws_scheduler_schedule" "daily_pipeline" {
-  name                = var.scheduler_name
-  schedule_expression = var.schedule_expression
-  state               = "ENABLED"
-  flexible_time_window {
-    mode = "OFF"
-  }
+resource "aws_cloudwatch_event_rule" "landing_object_created" {
+  name          = var.event_rule_name
+  event_pattern = local.event_pattern
+  tags          = var.common_tags
+}
 
-  target {
-    arn      = aws_sfn_state_machine.daily_medallion.arn
-    role_arn = aws_iam_role.scheduler.arn
-    input    = jsonencode(local.scheduler_input)
-  }
+resource "aws_cloudwatch_event_target" "start_state_machine" {
+  rule      = aws_cloudwatch_event_rule.landing_object_created.name
+  target_id = var.event_target_id
+  arn       = aws_sfn_state_machine.daily_medallion.arn
+  role_arn  = aws_iam_role.eventbridge_trigger.arn
 }

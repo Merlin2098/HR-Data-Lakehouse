@@ -105,7 +105,7 @@ Completed in code/IaC:
 - Glue Catalog definitions for silver and gold
 - Athena workgroup definition
 - Step Functions orchestration
-- EventBridge Scheduler trigger
+- EventBridge rule triggered by `S3 Object Created`
 - CloudWatch/SNS observability scaffolding
 
 Pending AWS validation:
@@ -183,7 +183,7 @@ Use this only after real validation:
 - Terraform successfully validates and applies
 - Assets exist in S3
 - Glue jobs execute successfully
-- Step Functions runs daily pipeline successfully
+- Step Functions runs the event-driven pipeline successfully after a landing upload
 - Athena queries the published datasets
 - Monitoring signals failures correctly
 

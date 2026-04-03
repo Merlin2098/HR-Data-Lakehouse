@@ -26,6 +26,10 @@ DEFAULT_CONFIG_PATH = "src/configs/transformations.yaml"
 DEFAULT_PIPELINE_NAME = "bronze_to_silver"
 
 
+def normalize_source_filename(value: str) -> str:
+    return Path(str(value).rstrip("/")).name
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the bronze-to-silver HR pipeline.")
     parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="Local path or S3 URI to the pipeline YAML file.")
@@ -94,7 +98,9 @@ def run_pipeline(
         runtime_variables=runtime_variables,
     )
 
-    resolved_source_filename = source_filename or str(runtime_variables.get("source_filename") or source_file_name(context.source_uri))
+    resolved_source_filename = normalize_source_filename(
+        str(source_filename or runtime_variables.get("source_filename") or source_file_name(context.source_uri))
+    )
     resolved_source_uri = resolve_bronze_source_uri(context.source_uri, business_date_value, resolved_source_filename)
 
     if resolved_source_uri != context.source_uri:
