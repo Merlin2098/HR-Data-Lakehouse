@@ -41,8 +41,9 @@ pipelines:
       s3_key: hr_attrition/gold/hr_attrition/
       write_mode: overwrite
       partition_by:
-        - ingestion_year
-        - ingestion_month
+        - year
+        - month
+        - day
     artifacts:
       query_path: src/queries/silver_to_gold.sql
       contract_path: src/configs/contracts.yaml

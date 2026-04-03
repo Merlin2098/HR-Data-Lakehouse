@@ -31,6 +31,7 @@ class PipelineContext:
     source_view_name: str
     target_dataset_name: str
     output_compression: str
+    write_mode: str
 
 
 def load_pipeline_context(
@@ -66,6 +67,7 @@ def load_pipeline_context(
     source_view_name = str(source_config.get("view_name", source_config.get("dataset_name", "pipeline_source")))
     target_dataset_name = str(target_config.get("dataset_name", pipeline_name))
     output_compression = str(target_config.get("compression", "snappy"))
+    write_mode = str(target_config.get("write_mode", "overwrite"))
 
     if not query_path or not contract_path or not source_uri or not target_uri:
         raise ValueError("Pipeline definition is missing query, contract, source, or target settings.")
@@ -81,6 +83,7 @@ def load_pipeline_context(
         source_view_name=source_view_name,
         target_dataset_name=target_dataset_name,
         output_compression=output_compression,
+        write_mode=write_mode,
     )
 
 
@@ -191,6 +194,7 @@ def run_parquet_to_parquet_pipeline(
         validate_output_columns(actual_columns, required_columns)
 
         if partition_by:
+            final_target_dir = resolve_project_path(context.target_uri)
             target_dir = prepare_directory_output_path(context.target_uri)
             partition_spec = ", ".join(partition_by)
             target_sql = escape_sql_string(str(target_dir))
@@ -200,6 +204,7 @@ def run_parquet_to_parquet_pipeline(
                 f"TO '{target_sql}' "
                 f"(FORMAT PARQUET, PARTITION_BY ({partition_spec}), COMPRESSION '{context.output_compression}');"
             )
+            normalize_partition_layout(target_dir, partition_by)
             written_target = str(target_dir)
         else:
             target_file = prepare_file_output_path(context.target_uri)
@@ -244,3 +249,25 @@ def prepare_directory_output_path(path_value: str | Path) -> Path:
 
 def escape_sql_string(value: str) -> str:
     return value.replace("'", "''")
+
+
+def normalize_partition_layout(root: Path, partition_by: list[str]) -> None:
+    current_level_dirs = [root]
+
+    for partition_name in partition_by:
+        next_level_dirs: list[Path] = []
+        prefix = f"{partition_name}="
+
+        for parent in current_level_dirs:
+            for child in sorted(parent.iterdir()):
+                if not child.is_dir():
+                    continue
+
+                normalized_child = child
+                if child.name.startswith(prefix):
+                    normalized_child = child.with_name(child.name.removeprefix(prefix))
+                    child.rename(normalized_child)
+
+                next_level_dirs.append(normalized_child)
+
+        current_level_dirs = next_level_dirs

@@ -25,8 +25,9 @@ EXPECTED_COLUMNS = [
 
 EXPECTED_GOLD_COLUMNS = [
     "employee_id",
-    "ingestion_year",
-    "ingestion_month",
+    "year",
+    "month",
+    "day",
     "department",
     "job_role",
     "job_level",
@@ -65,7 +66,8 @@ def test_transformations_config_declares_silver_to_gold_pipeline() -> None:
 
     assert pipeline["source"]["local_path"] == "data/output/silver/hr_employees.parquet"
     assert pipeline["target"]["local_path"] == "data/output/gold/hr_attrition"
-    assert pipeline["target"]["partition_by"] == ["ingestion_year", "ingestion_month"]
+    assert pipeline["target"]["write_mode"] == "overwrite"
+    assert pipeline["target"]["partition_by"] == ["year", "month", "day"]
     assert pipeline["artifacts"]["query_path"] == "src/queries/silver_to_gold.sql"
 
 

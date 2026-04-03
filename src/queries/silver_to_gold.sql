@@ -1,7 +1,8 @@
 SELECT
   employee_number AS employee_id,
-  CAST({{ingestion_year}} AS INTEGER) AS ingestion_year,
-  CAST({{ingestion_month}} AS INTEGER) AS ingestion_month,
+  CAST({{year}} AS INTEGER) AS year,
+  CAST({{month}} AS INTEGER) AS month,
+  CAST({{day}} AS INTEGER) AS day,
   department,
   job_role,
   job_level,

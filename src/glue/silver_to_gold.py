@@ -53,13 +53,14 @@ def run_pipeline(
     )
     ingestion_date = parse_ingestion_date(ingestion_date_value)
     partition_by = list(
-        context.pipeline_definition.get("target", {}).get("partition_by", ["ingestion_year", "ingestion_month"])
+        context.pipeline_definition.get("target", {}).get("partition_by", ["year", "month", "day"])
     )
     result = run_parquet_to_parquet_pipeline(
         context,
         sql_variables={
-            "ingestion_year": ingestion_date.year,
-            "ingestion_month": ingestion_date.month,
+            "year": ingestion_date.year,
+            "month": ingestion_date.month,
+            "day": ingestion_date.day,
         },
         partition_by=partition_by,
     )

@@ -39,9 +39,11 @@ datasets:
     columns:
       - name: employee_id
         type: integer
-      - name: ingestion_year
+      - name: year
         type: integer
-      - name: ingestion_month
+      - name: month
+        type: integer
+      - name: day
         type: integer
       - name: department
         type: string

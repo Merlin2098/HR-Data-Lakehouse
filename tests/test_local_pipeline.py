@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import shutil
+import uuid
 
+import pyarrow as pa
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 
@@ -31,8 +33,9 @@ EXPECTED_SILVER_COLUMNS = [
 
 EXPECTED_GOLD_COLUMNS = [
     "employee_id",
-    "ingestion_year",
-    "ingestion_month",
+    "year",
+    "month",
+    "day",
     "department",
     "job_role",
     "job_level",
@@ -60,9 +63,25 @@ def clean_directory(path: str) -> None:
         shutil.rmtree(directory)
 
 
+def unique_test_root(name: str):
+    return resolve_project_path(f"data/output/test_runs/{name}_{uuid.uuid4().hex[:8]}")
+
+
+def directory_partitioning():
+    return ds.partitioning(
+        pa.schema(
+            [
+                ("year", pa.int32()),
+                ("month", pa.int32()),
+                ("day", pa.int32()),
+            ]
+        )
+    )
+
+
 def test_bronze_to_silver_writes_expected_parquet() -> None:
-    clean_directory("data/output/test_runs/bronze_to_silver")
-    output_path = resolve_project_path("data/output/test_runs/bronze_to_silver/hr_employees.parquet")
+    test_root = unique_test_root("bronze_to_silver")
+    output_path = test_root / "hr_employees.parquet"
 
     result = run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
@@ -83,9 +102,9 @@ def test_bronze_to_silver_writes_expected_parquet() -> None:
 
 
 def test_silver_to_gold_writes_partitioned_parquet() -> None:
-    clean_directory("data/output/test_runs/silver_to_gold")
-    silver_output = resolve_project_path("data/output/test_runs/silver_to_gold/hr_employees.parquet")
-    gold_output = resolve_project_path("data/output/test_runs/silver_to_gold/gold/hr_attrition")
+    test_root = unique_test_root("silver_to_gold")
+    silver_output = test_root / "hr_employees.parquet"
+    gold_output = test_root / "gold" / "hr_attrition"
 
     run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
@@ -99,26 +118,25 @@ def test_silver_to_gold_writes_partitioned_parquet() -> None:
         ingestion_date_value="2026-04-03",
     )
 
-    dataset = ds.dataset(gold_output, format="parquet", partitioning="hive")
+    dataset = ds.dataset(gold_output, format="parquet", partitioning=directory_partitioning())
     table = dataset.to_table()
     first_row = table.slice(0, 1).to_pylist()[0]
 
     assert result["engine"] == "duckdb"
     assert result["columns"] == EXPECTED_GOLD_COLUMNS
     assert sorted(dataset.schema.names) == sorted(EXPECTED_GOLD_COLUMNS)
-    assert resolve_project_path(
-        "data/output/test_runs/silver_to_gold/gold/hr_attrition/ingestion_year=2026/ingestion_month=4"
-    ).exists()
+    assert (gold_output / "2026" / "4" / "3").exists()
     assert first_row["job_satisfaction_label"] in {"low", "medium", "high", "very_high"}
     assert first_row["employee_id"] > 0
-    assert first_row["ingestion_year"] == 2026
-    assert first_row["ingestion_month"] == 4
+    assert first_row["year"] == 2026
+    assert first_row["month"] == 4
+    assert first_row["day"] == 3
 
 
 def test_full_runner_executes_bronze_to_gold_end_to_end() -> None:
-    clean_directory("data/output/test_runs/full_pipeline")
-    silver_output = resolve_project_path("data/output/test_runs/full_pipeline/silver/hr_employees.parquet")
-    gold_output = resolve_project_path("data/output/test_runs/full_pipeline/gold/hr_attrition")
+    test_root = unique_test_root("full_pipeline")
+    silver_output = test_root / "silver" / "hr_employees.parquet"
+    gold_output = test_root / "gold" / "hr_attrition"
 
     result = run_local_pipeline(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
@@ -129,7 +147,7 @@ def test_full_runner_executes_bronze_to_gold_end_to_end() -> None:
     )
 
     silver_table = pq.read_table(silver_output)
-    gold_dataset = ds.dataset(gold_output, format="parquet", partitioning="hive")
+    gold_dataset = ds.dataset(gold_output, format="parquet", partitioning=directory_partitioning())
     gold_table = gold_dataset.to_table()
 
     assert result["engine"] == "duckdb"
@@ -137,6 +155,20 @@ def test_full_runner_executes_bronze_to_gold_end_to_end() -> None:
     assert result["gold"]["columns"] == EXPECTED_GOLD_COLUMNS
     assert silver_table.num_rows > 0
     assert gold_table.num_rows > 0
-    assert resolve_project_path(
-        "data/output/test_runs/full_pipeline/gold/hr_attrition/ingestion_year=2025/ingestion_month=12"
-    ).exists()
+    assert (gold_output / "2025" / "12" / "15").exists()
+
+
+def test_full_runner_defaults_to_today_when_ingestion_date_is_not_provided() -> None:
+    test_root = unique_test_root("default_today")
+    silver_output = test_root / "silver" / "hr_employees.parquet"
+    gold_output = test_root / "gold" / "hr_attrition"
+
+    result = run_local_pipeline(
+        config_path=resolve_project_path("src/configs/transformations.yaml"),
+        source_override=resolve_project_path("data/HR-Employee-Attrition.csv"),
+        silver_target_override=silver_output,
+        gold_target_override=gold_output,
+    )
+
+    assert result["gold"]["ingestion_date"] == "2026-04-02"
+    assert (gold_output / "2026" / "4" / "2").exists()

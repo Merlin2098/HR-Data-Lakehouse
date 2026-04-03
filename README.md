@@ -39,7 +39,8 @@ The local pipeline uses:
 - `src/glue/silver_to_gold.py` for the gold stage
 - `src/glue/run_local_pipeline.py` for the full end-to-end local run
 
-By default, the pipeline reads `data/HR-Employee-Attrition.csv`, writes silver parquet to `data/output/silver/hr_employees.parquet`, and writes gold parquet to `data/output/gold/hr_attrition/` partitioned by `ingestion_year` and `ingestion_month`.
+By default, the pipeline reads `data/HR-Employee-Attrition.csv`, writes silver parquet to `data/output/silver/hr_employees.parquet`, and writes gold parquet to `data/output/gold/hr_attrition/` using a numeric directory layout `year/month/day` such as `.../2026/4/3/`.
+Gold uses the simpler daily overwrite model, so each run refreshes the partition for that processing day instead of accumulating multiple parquet files in the same folder.
 
 Run it with the project virtual environment:
 
@@ -58,6 +59,8 @@ Run the full local pipeline:
 ```powershell
 .\.venv\Scripts\python.exe src\glue\run_local_pipeline.py --ingestion-date 2026-04-03
 ```
+
+If you omit `--ingestion-date`, the pipeline uses the local current date automatically.
 
 Run the unit tests with:
 

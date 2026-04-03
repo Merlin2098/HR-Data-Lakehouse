@@ -19,6 +19,7 @@ def test_silver_to_gold_query_targets_expected_view_and_enrichment() -> None:
 
     assert "FROM silver_hr_employees" in sql_text
     assert "employee_id" in sql_text
-    assert "{{ingestion_year}}" in sql_text
-    assert "{{ingestion_month}}" in sql_text
+    assert "{{year}}" in sql_text
+    assert "{{month}}" in sql_text
+    assert "{{day}}" in sql_text
     assert "very_high" in sql_text
