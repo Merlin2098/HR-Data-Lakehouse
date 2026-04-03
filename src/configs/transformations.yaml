@@ -1,0 +1,24 @@
+version: 1
+
+pipelines:
+  bronze_to_silver:
+    description: Normalize the HR attrition CSV into a curated silver parquet dataset.
+    source:
+      layer: bronze
+      dataset_name: raw_hr_attrition
+      format: csv
+      local_path: data/WA_Fn-UseC_-HR-Employee-Attrition.csv
+      s3_key: hr_attrition/raw/WA_Fn-UseC_-HR-Employee-Attrition.csv
+      view_name: bronze_hr_attrition
+    target:
+      layer: silver
+      dataset_name: silver_hr_attrition
+      format: parquet
+      local_path: data/output/silver/hr_attrition.parquet
+      s3_key: hr_attrition/silver/hr_attrition.parquet
+      write_mode: overwrite
+    artifacts:
+      query_path: src/queries/bronze_to_silver.sql
+      contract_path: src/configs/contracts.yaml
+      glue_script_path: src/glue/bronze_to_silver.py
+      glue_script_s3_key: glue/bronze_to_silver.py

@@ -12,6 +12,10 @@ crash.log
 .env.*.local
 .venv/
 data/
+__pycache__/
+.pytest_cache/
+.pytest_tmp/
+pytest-cache-files-*
 
 # Tinker v2 framework (portable - not part of host project)
 agents2/

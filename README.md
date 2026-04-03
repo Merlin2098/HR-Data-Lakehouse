@@ -1,39 +1,61 @@
-# 🧪 Terraform AWS Connection Check
+# HR Data Lakehouse
 
-This project is a **minimal Terraform setup** designed to validate connectivity between Terraform and an AWS account.
+This repository now contains the phase-1 foundation for an AWS serverless lakehouse focused on HR attrition analytics.
 
-It is intended as a **pre-deployment validation tool** before provisioning any real infrastructure.
+The current scope is intentionally small:
 
----
+- Terraform infrastructure lives in `infra/`.
+- Phase 1 provisions three S3 buckets (`bronze`, `silver`, `scripts`).
+- A Glue execution role and one `bronze -> silver` Glue job are defined.
+- The local application scaffold lives in `src/` with externalized YAML, SQL, and data contracts.
 
-## 🎯 Purpose
+## Repository layout
 
-Before deploying resources in AWS (especially in client environments), it's critical to verify:
+```text
+infra/
+  modules/
+    glue/
+    iam/
+    s3/
+  env/
+src/
+  common/
+  configs/
+  glue/
+  queries/
+tests/
+docs/
+```
 
-- AWS credentials are valid
-- Terraform can authenticate successfully
-- The correct AWS account is being used
-- The correct region is configured
+## Local pipeline scaffold
 
-This project performs those checks safely without creating any resources.
+The local scaffold uses:
 
----
+- `src/configs/transformations.yaml` for pipeline configuration
+- `src/configs/contracts.yaml` for the silver dataset contract
+- `src/queries/bronze_to_silver.sql` for the transformation logic
+- `src/glue/bronze_to_silver.py` as the executable entrypoint
 
-## ⚙️ What this project does
+By default, the script reads the HR attrition CSV from `data/` and writes a parquet file under `data/output/silver/`.
 
-This project uses Terraform **data sources** to:
+Run it with the project virtual environment:
 
-- Retrieve the current AWS account ID
-- Retrieve the current IAM identity (ARN)
-- Retrieve the active AWS region
+```powershell
+.\.venv\Scripts\python.exe src\glue\bronze_to_silver.py
+```
 
-It does **NOT** create, modify, or delete any AWS resources.
+Run the unit tests with:
 
----
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests
+```
 
-## 🚀 How to use
+## Terraform notes
 
-terraform init
-terraform validate
-terraform plan
-terraform apply
+Terraform phase-1 configuration is under `infra/` and is organized around three modules:
+
+- `s3` for bronze, silver, and scripts buckets
+- `iam` for the Glue execution role and policy
+- `glue` for the single `bronze_to_silver` job
+
+Script, SQL, and config uploads to S3 are intentionally deferred to the next phase so phase 1 stays focused on the minimum runnable foundation.

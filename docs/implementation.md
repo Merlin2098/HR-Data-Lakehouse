@@ -26,7 +26,7 @@ Build a **serverless Lakehouse architecture in AWS** using Terraform, following:
 
 # 🧱 0. Scope (Phase-Based)
 
-## Phase 1 (Execution First)
+## Phase 1 (Execution First) - DONE
 
 Minimal working pipeline:
 
@@ -34,6 +34,12 @@ Minimal working pipeline:
 * IAM (Glue role)
 * AWS Glue (1 job)
 * YAML + SQL + Python working end-to-end
+
+Status:
+
+* Completed in repository structure and local scaffold
+* Terraform reorganized under `infra/` with `s3`, `iam`, and `glue` modules
+* Local `bronze_to_silver` pipeline implemented with external YAML, SQL, and contract files
 
 ---
 
@@ -147,7 +153,7 @@ QUERY_PATH = "queries/bronze_to_silver.sql"
 
 ---
 
-# 🥈 3. Phase 1 — Minimal Terraform Infrastructure
+# 🥈 3. Phase 1 — Minimal Terraform Infrastructure - DONE
 
 ## 🎯 Objective
 
@@ -197,9 +203,9 @@ Create 1 job:
 
 ## ✅ Definition of Done
 
-* `terraform apply` successful
-* Buckets created
-* Glue job created
+* Terraform layout migrated to `infra/`
+* Buckets, Glue role, and Glue job defined in modular Terraform
+* Local scaffold for YAML + SQL + Python verified end-to-end
 
 ---
 
@@ -401,8 +407,8 @@ It is about building:
 
 # 🚀 Next Step
 
-* Implement Phase 0
-* Deploy Phase 1
-* Run first Glue job
+* Implement Phase 2 code deployment via Terraform
+* Upload Glue assets to S3 through IaC
+* Execute the first Glue job in AWS
 
 ---
