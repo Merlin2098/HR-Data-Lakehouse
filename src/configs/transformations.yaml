@@ -5,20 +5,46 @@ pipelines:
     description: Normalize the HR attrition CSV into a curated silver parquet dataset.
     source:
       layer: bronze
-      dataset_name: raw_hr_attrition
+      dataset_name: raw_hr_employee_attrition
       format: csv
-      local_path: data/WA_Fn-UseC_-HR-Employee-Attrition.csv
-      s3_key: hr_attrition/raw/WA_Fn-UseC_-HR-Employee-Attrition.csv
+      local_path: data/HR-Employee-Attrition.csv
+      s3_key: hr_attrition/raw/HR-Employee-Attrition.csv
       view_name: bronze_hr_attrition
     target:
       layer: silver
-      dataset_name: silver_hr_attrition
+      dataset_name: silver_hr_employees
       format: parquet
-      local_path: data/output/silver/hr_attrition.parquet
-      s3_key: hr_attrition/silver/hr_attrition.parquet
+      compression: snappy
+      local_path: data/output/silver/hr_employees.parquet
+      s3_key: hr_attrition/silver/hr_employees.parquet
       write_mode: overwrite
     artifacts:
       query_path: src/queries/bronze_to_silver.sql
       contract_path: src/configs/contracts.yaml
       glue_script_path: src/glue/bronze_to_silver.py
       glue_script_s3_key: glue/bronze_to_silver.py
+  silver_to_gold:
+    description: Enrich the silver parquet dataset into a partitioned gold analytics dataset.
+    source:
+      layer: silver
+      dataset_name: silver_hr_employees
+      format: parquet
+      local_path: data/output/silver/hr_employees.parquet
+      s3_key: hr_attrition/silver/hr_employees.parquet
+      view_name: silver_hr_employees
+    target:
+      layer: gold
+      dataset_name: gold_hr_attrition_fact
+      format: parquet
+      compression: snappy
+      local_path: data/output/gold/hr_attrition
+      s3_key: hr_attrition/gold/hr_attrition/
+      write_mode: overwrite
+      partition_by:
+        - ingestion_year
+        - ingestion_month
+    artifacts:
+      query_path: src/queries/silver_to_gold.sql
+      contract_path: src/configs/contracts.yaml
+      glue_script_path: src/glue/silver_to_gold.py
+      glue_script_s3_key: glue/silver_to_gold.py

@@ -1,13 +1,13 @@
 # HR Data Lakehouse
 
-This repository now contains the phase-1 foundation for an AWS serverless lakehouse focused on HR attrition analytics.
+This repository now contains the phase-1 infrastructure foundation plus a local bronze-to-silver-to-gold pipeline for HR attrition analytics.
 
 The current scope is intentionally small:
 
 - Terraform infrastructure lives in `infra/`.
 - Phase 1 provisions three S3 buckets (`bronze`, `silver`, `scripts`).
 - A Glue execution role and one `bronze -> silver` Glue job are defined.
-- The local application scaffold lives in `src/` with externalized YAML, SQL, and data contracts.
+- The local application pipeline lives in `src/` with externalized YAML, SQL, and data contracts.
 
 ## Repository layout
 
@@ -27,21 +27,36 @@ tests/
 docs/
 ```
 
-## Local pipeline scaffold
+## Local pipeline
 
-The local scaffold uses:
+The local pipeline uses:
 
 - `src/configs/transformations.yaml` for pipeline configuration
-- `src/configs/contracts.yaml` for the silver dataset contract
-- `src/queries/bronze_to_silver.sql` for the transformation logic
-- `src/glue/bronze_to_silver.py` as the executable entrypoint
+- `src/configs/contracts.yaml` for silver and gold data contracts
+- `src/queries/bronze_to_silver.sql` for cleaning and typing
+- `src/queries/silver_to_gold.sql` for enrichment and partition-ready analytics
+- `src/glue/bronze_to_silver.py` for the silver stage
+- `src/glue/silver_to_gold.py` for the gold stage
+- `src/glue/run_local_pipeline.py` for the full end-to-end local run
 
-By default, the script reads the HR attrition CSV from `data/` and writes a parquet file under `data/output/silver/`.
+By default, the pipeline reads `data/HR-Employee-Attrition.csv`, writes silver parquet to `data/output/silver/hr_employees.parquet`, and writes gold parquet to `data/output/gold/hr_attrition/` partitioned by `ingestion_year` and `ingestion_month`.
 
 Run it with the project virtual environment:
 
 ```powershell
 .\.venv\Scripts\python.exe src\glue\bronze_to_silver.py
+```
+
+Run only the gold stage with an explicit ingestion date:
+
+```powershell
+.\.venv\Scripts\python.exe src\glue\silver_to_gold.py --ingestion-date 2026-04-03
+```
+
+Run the full local pipeline:
+
+```powershell
+.\.venv\Scripts\python.exe src\glue\run_local_pipeline.py --ingestion-date 2026-04-03
 ```
 
 Run the unit tests with:

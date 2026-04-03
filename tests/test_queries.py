@@ -12,3 +12,13 @@ def test_bronze_to_silver_query_targets_expected_view_and_fields() -> None:
     assert "monthly_income" in sql_text
     assert "attrition" in sql_text
     assert "data/" not in sql_text
+
+
+def test_silver_to_gold_query_targets_expected_view_and_enrichment() -> None:
+    sql_text = load_sql_file(resolve_project_path("src/queries/silver_to_gold.sql"))
+
+    assert "FROM silver_hr_employees" in sql_text
+    assert "employee_id" in sql_text
+    assert "{{ingestion_year}}" in sql_text
+    assert "{{ingestion_month}}" in sql_text
+    assert "very_high" in sql_text

@@ -1,0 +1,43 @@
+SELECT
+  employee_number AS employee_id,
+  CAST({{ingestion_year}} AS INTEGER) AS ingestion_year,
+  CAST({{ingestion_month}} AS INTEGER) AS ingestion_month,
+  department,
+  job_role,
+  job_level,
+  attrition,
+  monthly_income,
+  percent_salary_hike,
+  years_at_company,
+  years_since_last_promotion,
+  total_working_years,
+  over_time,
+  job_satisfaction AS job_satisfaction_score,
+  environment_satisfaction AS environment_satisfaction_score,
+  relationship_satisfaction AS relationship_satisfaction_score,
+  work_life_balance AS work_life_balance_score,
+  CASE job_satisfaction
+    WHEN 1 THEN 'low'
+    WHEN 2 THEN 'medium'
+    WHEN 3 THEN 'high'
+    WHEN 4 THEN 'very_high'
+  END AS job_satisfaction_label,
+  CASE environment_satisfaction
+    WHEN 1 THEN 'low'
+    WHEN 2 THEN 'medium'
+    WHEN 3 THEN 'high'
+    WHEN 4 THEN 'very_high'
+  END AS environment_satisfaction_label,
+  CASE relationship_satisfaction
+    WHEN 1 THEN 'low'
+    WHEN 2 THEN 'medium'
+    WHEN 3 THEN 'high'
+    WHEN 4 THEN 'very_high'
+  END AS relationship_satisfaction_label,
+  CASE work_life_balance
+    WHEN 1 THEN 'low'
+    WHEN 2 THEN 'medium'
+    WHEN 3 THEN 'high'
+    WHEN 4 THEN 'very_high'
+  END AS work_life_balance_label
+FROM silver_hr_employees

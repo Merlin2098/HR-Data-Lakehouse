@@ -1,7 +1,7 @@
 version: 1
 
 datasets:
-  silver_hr_attrition:
+  silver_hr_employees:
     description: Curated silver dataset for attrition analysis and downstream gold modeling.
     columns:
       - name: employee_number
@@ -34,3 +34,48 @@ datasets:
         type: integer
       - name: attrition
         type: boolean
+  gold_hr_attrition_fact:
+    description: Enriched gold dataset ready for analytics and partitioned consumption.
+    columns:
+      - name: employee_id
+        type: integer
+      - name: ingestion_year
+        type: integer
+      - name: ingestion_month
+        type: integer
+      - name: department
+        type: string
+      - name: job_role
+        type: string
+      - name: job_level
+        type: integer
+      - name: attrition
+        type: boolean
+      - name: monthly_income
+        type: decimal(12,2)
+      - name: percent_salary_hike
+        type: integer
+      - name: years_at_company
+        type: integer
+      - name: years_since_last_promotion
+        type: integer
+      - name: total_working_years
+        type: integer
+      - name: over_time
+        type: boolean
+      - name: job_satisfaction_score
+        type: integer
+      - name: environment_satisfaction_score
+        type: integer
+      - name: relationship_satisfaction_score
+        type: integer
+      - name: work_life_balance_score
+        type: integer
+      - name: job_satisfaction_label
+        type: string
+      - name: environment_satisfaction_label
+        type: string
+      - name: relationship_satisfaction_label
+        type: string
+      - name: work_life_balance_label
+        type: string
