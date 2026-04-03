@@ -1,381 +1,408 @@
+# 🚀 AWS Lakehouse (Terraform) — Implementation Plan (Execution-First)
+
 ---
 
-# 🚀 AWS Lakehouse (Terraform) — Implementation Plan
-
-## 🎯 Objective
+# 🎯 Objective
 
 Build a **serverless Lakehouse architecture in AWS** using Terraform, following:
 
 * Medallion Architecture (Bronze → Silver → Gold)
-* Best practices (modularity, security, cost control)
+* Config-driven pipelines (YAML + SQL)
+* Execution-first approach (run early, iterate fast)
 * KISS principle (simple, explainable, production-like)
-* Tag for every resource: HR_LakeHouse_Proyect
+* Tag for every resource: `HR_LakeHouse_Project`
 
 ---
 
-# 🧱 0. Project Scope
+# 🧠 Core Principles
 
-## Services involved
+> ❗ If it doesn’t run, it doesn’t exist.
 
-* S3 (data lake storage + scripts)
-* AWS Glue (ETL processing + catalog)
-* Athena (query layer)
-* IAM (security)
-* CloudWatch + CloudTrail (observability)
-* AWS Budgets (cost control)
+* Infrastructure defines the system
+* Code defines the behavior
+* Both must be versioned and deployed together
 
 ---
 
-# 📁 1. Project Setup
+# 🧱 0. Scope (Phase-Based)
 
-## 1.1 Create repository structure
+## Phase 1 (Execution First)
+
+Minimal working pipeline:
+
+* S3 (bronze, silver, scripts)
+* IAM (Glue role)
+* AWS Glue (1 job)
+* YAML + SQL + Python working end-to-end
+
+---
+
+## Phase 2 (Expansion)
+
+* S3 gold layer
+* Athena
+* Additional Glue jobs
+* Monitoring (CloudWatch)
+* Budgets
+
+---
+
+# 📁 1. Project Structure
 
 ```
-lakehouse-terraform/
+lakehouse-aws/
 │
-├── main.tf
-├── variables.tf
-├── outputs.tf
-├── provider.tf
-├── terraform.tfvars
+├── infra/
+│   ├── main.tf
+│   ├── provider.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars
 │
-├── modules/
-│   ├── s3/
-│   ├── iam/
+│   ├── modules/
+│   │   ├── s3/
+│   │   ├── iam/
+│   │   ├── glue/
+│
+│   └── env/
+│       ├── dev.tfvars
+│       ├── prod.tfvars
+│
+├── src/
 │   ├── glue/
-│   ├── athena/
-│   ├── monitoring/
-│   ├── budgets/
+│   │   ├── bronze_to_silver.py
+│   │   ├── silver_to_gold.py
 │
-├── scripts/
-│   ├── bronze_to_silver.py
-│   ├── silver_to_gold.py
+│   ├── configs/
+│   │   ├── transformations.yaml
+│   │   ├── contracts.yaml
 │
-└── env/
-    ├── dev.tfvars
-    ├── prod.tfvars
+│   ├── queries/
+│   │   ├── bronze_to_silver.sql
+│   │   ├── silver_to_gold.sql
+│
+│   ├── common/
+│       ├── s3_utils.py
+│       ├── config_loader.py
+│       ├── query_loader.py
+│
+├── tests/
+│   ├── test_configs.py
+│   ├── test_queries.py
+│
+└── README.md
 ```
-
-## 1.2 Configure provider
-
-Create `provider.tf`:
-
-* AWS provider
-* region variable
-* (optional) backend S3 later
 
 ---
 
-# 🪣 2. S3 Module (Data Lake Foundation)
+# 🥇 2. Phase 0 — Local Cloud-Ready
 
-## 2.1 Create buckets
+## 🎯 Objective
 
-Buckets required:
-
-* bronze
-* silver
-* gold
-* athena-query-results
-* **scripts (Glue ETL scripts)** ✅
+Prepare code to run in AWS without major changes.
 
 ---
 
-## 2.2 Features to implement
+## Tasks
 
-* Versioning enabled
-* Server-side encryption (SSE-S3 or KMS)
-* Tags:
-  * project
-  * environment
-  * layer
+### 2.1 Standardize structure
+
+* Separate:
+  * configs (YAML)
+  * queries (SQL)
+  * scripts (Python)
 
 ---
 
-## 2.3 Naming convention
+### 2.2 Script responsibilities
 
-```
-<project>-<layer>-<env>
-```
+Each script must:
+
+* Load YAML config
+* Load SQL query
+* Execute transformation
+* Write output as Parquet
+
+---
+
+### 2.3 Remove hardcoding
+
+❌ Local paths
+✔️ Parameterized paths
 
 Example:
 
-```
-lakehouse-bronze-dev
-lakehouse-scripts-dev
+```python
+CONFIG_PATH = "configs/transformations.yaml"
+QUERY_PATH = "queries/bronze_to_silver.sql"
 ```
 
 ---
 
-## 2.4 Outputs
+## ✅ Definition of Done
 
-Expose:
-
-* bucket names
-* ARNs
-* scripts bucket
+* Script runs locally
+* YAML and SQL externalized
+* Output generated in Parquet
 
 ---
 
-# 🔐 3. IAM Module
+# 🥈 3. Phase 1 — Minimal Terraform Infrastructure
 
-## 3.1 Glue Role
+## 🎯 Objective
 
-Create IAM role:
+Deploy minimal environment to run one pipeline.
+
+---
+
+## Resources
+
+### S3
+
+Create buckets:
+
+* bronze
+* silver
+* scripts
+
+---
+
+### IAM
+
+Create role:
 
 * Trusted entity: Glue
 * Permissions:
-  * S3 read/write (bronze/silver/gold/scripts)
+  * S3 read/write
   * CloudWatch logs
-  * Glue service permissions
 
 ---
 
-## 3.2 Athena Role (optional but recommended)
+### Glue
 
-* S3 read access (gold)
-* Write access (athena results)
+Create 1 job:
 
----
-
-## 3.3 Best practices
-
-* Least privilege (no wildcard *)
-* Separate roles per service
+* bronze → silver
 
 ---
 
-# ⚙️ 4. Glue Module
-
-## 🧠 Key Principle
-
-> Glue jobs DO NOT store code inline.
-> Scripts must be stored in S3 and referenced by the job.
-
----
-
-## 4.1 Glue Data Catalog
-
-Create:
-
-* database: `silver_db`
-* database: `gold_db`
-
----
-
-## 4.2 Script Deployment (IMPORTANT)
-
-Terraform must upload scripts from local repo → S3 scripts bucket.
-
-Example flow:
-
-```
-local scripts/ → S3 scripts bucket → Glue Job
-```
-
----
-
-## 4.3 Glue Jobs
-
-Create 2 jobs:
-
-### Job 1: Bronze → Silver
-
-* Input: S3 bronze
-* Output: S3 silver
-* Script: `s3://scripts/bronze_to_silver.py`
-
----
-
-### Job 2: Silver → Gold
-
-* Input: S3 silver
-* Output: S3 gold
-* Script: `s3://scripts/silver_to_gold.py`
-
----
-
-## 4.4 Glue configuration
-
-* Glue version: 4.0
-* Worker type: G.1X
-* Logging enabled (CloudWatch)
-
----
-
-# 🔍 5. Athena Module
-
-## 5.1 Workgroup
-
-Create Athena Workgroup:
-
-* Output location → S3 athena-query-results
-* Enforce settings
-
----
-
-## 5.2 Catalog integration
-
-* Use Glue Data Catalog
-* Tables referencing:
-  * silver
-  * gold
-
----
-
-# 📊 6. Monitoring Module
-
-## 6.1 CloudWatch
-
-* Log groups for:
-  * Glue jobs
-  * Athena queries
-
----
-
-## 6.2 CloudTrail
-
-* Enable basic trail for auditing
-
----
-
-# 💰 7. Budgets Module
-
-## 7.1 Budget
-
-* Monthly cost limit
-
-## 7.2 Alerts
-
-* 80% threshold
-* 100% threshold
-
----
-
-# 🔗 8. Root Module (Orchestration)
-
-## 8.1 Call modules
-
-Order:
-
-1. S3
-2. IAM
-3. Glue
-4. Athena
-5. Monitoring
-6. Budgets
-
----
-
-## 8.2 Pass outputs between modules
-
-Examples:
-
-* S3 → Glue (bucket paths + scripts bucket)
-* IAM → Glue (role ARN)
-* S3 → Athena (results bucket)
-
----
-
-# 🧪 9. Deployment Flow
-
-## 9.1 Initialize
-
-```
-terraform init
-```
-
-## 9.2 Validate
-
-```
-terraform validate
-```
-
-## 9.3 Plan
-
-```
-terraform plan -var-file=env/dev.tfvars
-```
-
-## 9.4 Apply
-
-```
-terraform apply -var-file=env/dev.tfvars
-```
-
----
-
-# 🧠 10. Design Decisions (Important for Interviews)
-
-## Why scripts in S3?
-
-* Required by Glue architecture ([Datashift](https://www.datashift.eu/blog/spark-your-infrastructure-terraform-to-deploy-aws-glue-pyspark-job?utm_source=chatgpt.com "Terraform to deploy AWS Glue Pyspark job"))
-* Enables versioning and reuse
-* Decouples infra from logic
-
----
-
-## Why scripts managed by Terraform?
-
-* Full reproducibility
-* No manual steps
-* Aligns with IaC principles ([Amazon Web Services, Inc.](https://aws.amazon.com/blogs/big-data/build-aws-glue-data-quality-pipeline-using-terraform/?utm_source=chatgpt.com "Build AWS Glue Data Quality pipeline using Terraform"))
-
----
-
-## Why scripts bucket inside S3 module?
-
-* KISS principle
-* Same storage layer responsibility
-* Avoid unnecessary modules
-
----
-
-# 🚀 Future Improvements (Optional)
-
-* Glue Workflows
+## ❗ Do NOT implement yet
+
+* Athena
+* Monitoring
+* Budgets
 * Step Functions
-* CI/CD for scripts (GitHub Actions)
-* Data quality checks
-* Partitioning strategy
 
 ---
 
-# ✅ Definition of Done
+## ✅ Definition of Done
 
-* All resources deployed via Terraform
-* Scripts uploaded automatically
-* Glue jobs runnable
-* Athena queries working on gold
-* Cost alerts configured
+* `terraform apply` successful
+* Buckets created
+* Glue job created
+
+---
+
+# 🥉 4. Phase 2 — Code Deployment via Terraform
+
+## 🎯 Objective
+
+Ensure code is versioned and deployed automatically.
+
+---
+
+## Implementation
+
+### Upload Glue script
+
+```hcl
+resource "aws_s3_object" "glue_script" {
+  bucket = var.scripts_bucket
+  key    = "glue/bronze_to_silver.py"
+  source = "${path.module}/../../src/glue/bronze_to_silver.py"
+
+  etag = filemd5("${path.module}/../../src/glue/bronze_to_silver.py")
+}
+```
+
+---
+
+### Upload config
+
+```hcl
+resource "aws_s3_object" "config_file" {
+  bucket = var.scripts_bucket
+  key    = "configs/transformations.yaml"
+  source = "${path.module}/../../src/configs/transformations.yaml"
+}
+```
+
+---
+
+### Upload query
+
+```hcl
+resource "aws_s3_object" "query_file" {
+  bucket = var.scripts_bucket
+  key    = "queries/bronze_to_silver.sql"
+  source = "${path.module}/../../src/queries/bronze_to_silver.sql"
+}
+```
+
+---
+
+## ✅ Definition of Done
+
+* Scripts uploaded to S3
+* Configs and queries available in S3
+* Changes tracked via Terraform
+
+---
+
+# 🏁 5. Phase 3 — First Pipeline Execution
+
+## 🎯 Objective
+
+Run first pipeline end-to-end in AWS.
+
+---
+
+## Flow
+
+1. Upload data → S3 bronze
+2. Run Glue Job
+3. Script reads:
+   * YAML from S3
+   * SQL from S3
+4. Output written → S3 silver (Parquet)
+
+---
+
+## Validation
+
+* Output exists in S3
+* No permission errors
 * Logs visible in CloudWatch
 
 ---
 
-# 🧩 Execution Strategy (for Codex)
+## ✅ Definition of Done
 
-👉 Implement  **module by module in this order** :
-
-1. S3 (INCLUDING scripts bucket)
-2. IAM
-3. Glue (WITH script upload)
-4. Athena
-5. Monitoring
-6. Budgets
+* Glue job runs successfully
+* Data transformed correctly
+* End-to-end pipeline validated
 
 ---
 
-👉 Each module must:
+# 🚀 6. Phase 4 — Expansion
 
-* have `main.tf`, `variables.tf`, `outputs.tf`
-* expose clear outputs
-* follow naming convention
+## Add components
 
 ---
 
-# 🔥 Key Principle
+### S3
 
-> “Infrastructure defines the system.
-> Scripts define the logic.
-> Both must be versioned and deployed together.”
+* gold bucket
+
+---
+
+### Glue
+
+* silver → gold job
+
+---
+
+### Athena
+
+* Workgroup
+* Queries on gold layer
+
+---
+
+### Monitoring
+
+* CloudWatch logs
+
+---
+
+### Budgets
+
+* Cost alerts
+
+---
+
+## ✅ Definition of Done
+
+* Full Medallion pipeline operational
+* Athena queries working
+* Cost visibility enabled
+
+---
+
+# 🔗 7. Execution Flow Summary
+
+```
+Local validated logic
+        ↓
+Terraform minimal infra
+        ↓
+Code deployed to S3
+        ↓
+Glue job execution
+        ↓
+Validation
+        ↓
+Scale architecture
+```
+
+---
+
+# 🔥 Key Rules
+
+---
+
+## Rule 1 — Start small
+
+> One working pipeline > full architecture not running
+
+---
+
+## Rule 2 — Separate concerns
+
+* Terraform → infrastructure
+* Python → execution
+* YAML → business logic
+* SQL → transformations
+
+---
+
+## Rule 3 — Avoid drift
+
+* No manual uploads to S3
+* Everything via Terraform
+
+---
+
+## Rule 4 — Iterate fast
+
+* Deploy → run → fix → repeat
+
+---
+
+# 🧠 Final Insight
+
+This project is not about AWS services.
+
+It is about building:
+
+> A reproducible, config-driven, cloud-native data platform
+
+---
+
+# 🚀 Next Step
+
+* Implement Phase 0
+* Deploy Phase 1
+* Run first Glue job
 
 ---
