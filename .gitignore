@@ -4,9 +4,14 @@
 *.tfstate.*
 crash.log
 .terraform.lock.hcl
+*.tfplan
+tfplan
 *.tfvars
 !infra/env/dev.tfvars
 !infra/env/prod.tfvars
+!infra/env/local.auto.tfvars.example
+!infra/.terraform.lock.hcl
+infra/env/local.auto.tfvars
 
 # Local .env files
 .env

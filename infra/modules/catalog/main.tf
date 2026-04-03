@@ -27,24 +27,78 @@ resource "aws_glue_catalog_table" "silver" {
       serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
     }
 
-    columns { name = "employee_number" type = "int" }
-    columns { name = "department" type = "string" }
-    columns { name = "job_role" type = "string" }
-    columns { name = "job_level" type = "int" }
-    columns { name = "over_time" type = "boolean" }
-    columns { name = "monthly_income" type = "decimal(12,2)" }
-    columns { name = "percent_salary_hike" type = "int" }
-    columns { name = "years_at_company" type = "int" }
-    columns { name = "years_since_last_promotion" type = "int" }
-    columns { name = "total_working_years" type = "int" }
-    columns { name = "job_satisfaction" type = "int" }
-    columns { name = "environment_satisfaction" type = "int" }
-    columns { name = "relationship_satisfaction" type = "int" }
-    columns { name = "work_life_balance" type = "int" }
-    columns { name = "attrition" type = "boolean" }
-    columns { name = "source_file" type = "string" }
-    columns { name = "run_id" type = "string" }
-    columns { name = "processed_at_utc" type = "timestamp" }
+    columns {
+      name = "employee_number"
+      type = "int"
+    }
+    columns {
+      name = "department"
+      type = "string"
+    }
+    columns {
+      name = "job_role"
+      type = "string"
+    }
+    columns {
+      name = "job_level"
+      type = "int"
+    }
+    columns {
+      name = "over_time"
+      type = "boolean"
+    }
+    columns {
+      name = "monthly_income"
+      type = "decimal(12,2)"
+    }
+    columns {
+      name = "percent_salary_hike"
+      type = "int"
+    }
+    columns {
+      name = "years_at_company"
+      type = "int"
+    }
+    columns {
+      name = "years_since_last_promotion"
+      type = "int"
+    }
+    columns {
+      name = "total_working_years"
+      type = "int"
+    }
+    columns {
+      name = "job_satisfaction"
+      type = "int"
+    }
+    columns {
+      name = "environment_satisfaction"
+      type = "int"
+    }
+    columns {
+      name = "relationship_satisfaction"
+      type = "int"
+    }
+    columns {
+      name = "work_life_balance"
+      type = "int"
+    }
+    columns {
+      name = "attrition"
+      type = "boolean"
+    }
+    columns {
+      name = "source_file"
+      type = "string"
+    }
+    columns {
+      name = "run_id"
+      type = "string"
+    }
+    columns {
+      name = "processed_at_utc"
+      type = "timestamp"
+    }
   }
 }
 
@@ -63,12 +117,21 @@ resource "aws_glue_catalog_table" "gold" {
     "projection.month.range"    = "1,12"
     "projection.day.type"       = "integer"
     "projection.day.range"      = "1,31"
-    "storage.location.template" = "s3://${var.gold_bucket_name}/hr_attrition/gold/hr_attrition/year=\${year}/month=\${month}/day=\${day}/"
+    "storage.location.template" = "s3://${var.gold_bucket_name}/hr_attrition/gold/hr_attrition/year=$${year}/month=$${month}/day=$${day}/"
   }
 
-  partition_keys { name = "year" type = "int" }
-  partition_keys { name = "month" type = "int" }
-  partition_keys { name = "day" type = "int" }
+  partition_keys {
+    name = "year"
+    type = "int"
+  }
+  partition_keys {
+    name = "month"
+    type = "int"
+  }
+  partition_keys {
+    name = "day"
+    type = "int"
+  }
 
   storage_descriptor {
     location      = "s3://${var.gold_bucket_name}/hr_attrition/gold/hr_attrition/"
@@ -80,28 +143,97 @@ resource "aws_glue_catalog_table" "gold" {
       serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
     }
 
-    columns { name = "employee_id" type = "int" }
-    columns { name = "ingestion_date" type = "date" }
-    columns { name = "department" type = "string" }
-    columns { name = "job_role" type = "string" }
-    columns { name = "job_level" type = "int" }
-    columns { name = "attrition" type = "boolean" }
-    columns { name = "monthly_income" type = "decimal(12,2)" }
-    columns { name = "percent_salary_hike" type = "int" }
-    columns { name = "years_at_company" type = "int" }
-    columns { name = "years_since_last_promotion" type = "int" }
-    columns { name = "total_working_years" type = "int" }
-    columns { name = "over_time" type = "boolean" }
-    columns { name = "job_satisfaction_score" type = "int" }
-    columns { name = "environment_satisfaction_score" type = "int" }
-    columns { name = "relationship_satisfaction_score" type = "int" }
-    columns { name = "work_life_balance_score" type = "int" }
-    columns { name = "job_satisfaction_label" type = "string" }
-    columns { name = "environment_satisfaction_label" type = "string" }
-    columns { name = "relationship_satisfaction_label" type = "string" }
-    columns { name = "work_life_balance_label" type = "string" }
-    columns { name = "source_file" type = "string" }
-    columns { name = "run_id" type = "string" }
-    columns { name = "processed_at_utc" type = "timestamp" }
+    columns {
+      name = "employee_id"
+      type = "int"
+    }
+    columns {
+      name = "ingestion_date"
+      type = "date"
+    }
+    columns {
+      name = "department"
+      type = "string"
+    }
+    columns {
+      name = "job_role"
+      type = "string"
+    }
+    columns {
+      name = "job_level"
+      type = "int"
+    }
+    columns {
+      name = "attrition"
+      type = "boolean"
+    }
+    columns {
+      name = "monthly_income"
+      type = "decimal(12,2)"
+    }
+    columns {
+      name = "percent_salary_hike"
+      type = "int"
+    }
+    columns {
+      name = "years_at_company"
+      type = "int"
+    }
+    columns {
+      name = "years_since_last_promotion"
+      type = "int"
+    }
+    columns {
+      name = "total_working_years"
+      type = "int"
+    }
+    columns {
+      name = "over_time"
+      type = "boolean"
+    }
+    columns {
+      name = "job_satisfaction_score"
+      type = "int"
+    }
+    columns {
+      name = "environment_satisfaction_score"
+      type = "int"
+    }
+    columns {
+      name = "relationship_satisfaction_score"
+      type = "int"
+    }
+    columns {
+      name = "work_life_balance_score"
+      type = "int"
+    }
+    columns {
+      name = "job_satisfaction_label"
+      type = "string"
+    }
+    columns {
+      name = "environment_satisfaction_label"
+      type = "string"
+    }
+    columns {
+      name = "relationship_satisfaction_label"
+      type = "string"
+    }
+    columns {
+      name = "work_life_balance_label"
+      type = "string"
+    }
+    columns {
+      name = "source_file"
+      type = "string"
+    }
+    columns {
+      name = "run_id"
+      type = "string"
+    }
+    columns {
+      name = "processed_at_utc"
+      type = "timestamp"
+    }
   }
 }

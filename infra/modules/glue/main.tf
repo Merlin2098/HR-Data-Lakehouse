@@ -1,15 +1,15 @@
 locals {
-  config_uri                  = "s3://${var.script_bucket}/${var.config_key}"
-  contract_uri                = "s3://${var.script_bucket}/${var.contract_key}"
-  landing_script_location     = "s3://${var.script_bucket}/${var.landing_script_key}"
-  bronze_script_location      = "s3://${var.script_bucket}/${var.bronze_to_silver_script_key}"
-  gold_script_location        = "s3://${var.script_bucket}/${var.silver_to_gold_script_key}"
-  bronze_query_uri            = "s3://${var.script_bucket}/${var.bronze_to_silver_query_key}"
-  gold_query_uri              = "s3://${var.script_bucket}/${var.silver_to_gold_query_key}"
+  config_uri              = "s3://${var.script_bucket}/${var.config_key}"
+  contract_uri            = "s3://${var.script_bucket}/${var.contract_key}"
+  landing_script_location = "s3://${var.script_bucket}/${var.landing_script_key}"
+  bronze_script_location  = "s3://${var.script_bucket}/${var.bronze_to_silver_script_key}"
+  gold_script_location    = "s3://${var.script_bucket}/${var.silver_to_gold_script_key}"
+  bronze_query_uri        = "s3://${var.script_bucket}/${var.bronze_to_silver_query_key}"
+  gold_query_uri          = "s3://${var.script_bucket}/${var.silver_to_gold_query_key}"
 
-  bronze_raw_root_uri         = "s3://${var.bronze_bucket}/hr_attrition/raw/"
-  silver_dataset_uri          = "s3://${var.silver_bucket}/hr_attrition/silver/hr_employees/"
-  gold_dataset_uri            = "s3://${var.gold_bucket}/hr_attrition/gold/hr_attrition/"
+  bronze_raw_root_uri = "s3://${var.bronze_bucket}/hr_attrition/raw/"
+  silver_dataset_uri  = "s3://${var.silver_bucket}/hr_attrition/silver/hr_employees/"
+  gold_dataset_uri    = "s3://${var.gold_bucket}/hr_attrition/gold/hr_attrition/"
 
   temp_dir_prefix = "glue-temp"
 }
@@ -51,7 +51,7 @@ resource "aws_glue_job" "landing_to_bronze" {
   tags         = var.common_tags
 
   default_arguments = {
-    "--target-uri"        = local.bronze_raw_root_uri
+    "--target-uri" = local.bronze_raw_root_uri
   }
 }
 

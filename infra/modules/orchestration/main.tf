@@ -2,8 +2,8 @@ locals {
   landing_object_pattern = "${var.landing_prefix}*${var.landing_suffix}"
 
   event_pattern = jsonencode({
-    source      = ["aws.s3"]
-    detail-type = ["Object Created"]
+    source        = ["aws.s3"]
+    "detail-type" = ["Object Created"]
     detail = {
       bucket = {
         name = [var.bronze_bucket_name]
@@ -41,13 +41,13 @@ locals {
       NormalizeS3Event = {
         Type = "Pass"
         Parameters = {
-          bucket_name.$     = "$.detail.bucket.name"
-          object_key.$      = "$.detail.object.key"
-          event_time.$      = "$.time"
-          business_date.$   = "States.ArrayGetItem(States.StringSplit($.time, 'T'), 0)"
-          run_id.$          = "$.id"
-          source_uri.$      = "States.Format('s3://{}/{}', $.detail.bucket.name, $.detail.object.key)"
-          source_filename.$ = "States.ArrayGetItem(States.StringSplit($.detail.object.key, '/'), 2)"
+          "bucket_name.$"     = "$.detail.bucket.name"
+          "object_key.$"      = "$.detail.object.key"
+          "event_time.$"      = "$.time"
+          "business_date.$"   = "States.ArrayGetItem(States.StringSplit($.time, 'T'), 0)"
+          "run_id.$"          = "$.id"
+          "source_uri.$"      = "States.Format('s3://{}/{}', $.detail.bucket.name, $.detail.object.key)"
+          "source_filename.$" = "States.ArrayGetItem(States.StringSplit($.detail.object.key, '/'), 2)"
         }
         ResultPath = "$"
         Next       = "PromoteLandingToBronze"
@@ -55,13 +55,13 @@ locals {
       NormalizeManualInput = {
         Type = "Pass"
         Parameters = {
-          bucket_name.$     = "$.bucket_name"
-          object_key.$      = "$.object_key"
-          source_uri.$      = "$.source_uri"
-          source_filename.$ = "$.source_filename"
-          business_date.$   = "$.business_date"
-          run_id.$          = "$.run_id"
-          event_time.$      = "$.event_time"
+          "bucket_name.$"     = "$.bucket_name"
+          "object_key.$"      = "$.object_key"
+          "source_uri.$"      = "$.source_uri"
+          "source_filename.$" = "$.source_filename"
+          "business_date.$"   = "$.business_date"
+          "run_id.$"          = "$.run_id"
+          "event_time.$"      = "$.event_time"
         }
         ResultPath = "$"
         Next       = "PromoteLandingToBronze"
@@ -77,8 +77,8 @@ locals {
         Parameters = {
           JobName = var.landing_to_bronze_job_name
           Arguments = {
-            "--business-date.$"  = "$.business_date"
-            "--source-uri.$"     = "$.source_uri"
+            "--business-date.$"   = "$.business_date"
+            "--source-uri.$"      = "$.source_uri"
             "--source-filename.$" = "$.source_filename"
           }
         }
@@ -90,8 +90,8 @@ locals {
         Parameters = {
           JobName = var.bronze_to_silver_job_name
           Arguments = {
-            "--business-date.$"  = "$.business_date"
-            "--run-id.$"         = "$.run_id"
+            "--business-date.$"   = "$.business_date"
+            "--run-id.$"          = "$.run_id"
             "--source-filename.$" = "$.source_filename"
           }
         }
@@ -113,7 +113,7 @@ locals {
         Type     = "Task"
         Resource = "arn:aws:states:::athena:startQueryExecution.sync"
         Parameters = {
-          WorkGroup = var.athena_workgroup_name
+          WorkGroup   = var.athena_workgroup_name
           QueryString = "SELECT COUNT(*) AS row_count FROM \"${var.athena_database_name}\".\"${var.gold_table_name}\""
           QueryExecutionContext = {
             Database = var.athena_database_name

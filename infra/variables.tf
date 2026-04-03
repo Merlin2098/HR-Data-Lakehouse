@@ -4,6 +4,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "aws_profile" {
+  description = "Optional AWS shared credentials profile for local Terraform execution."
+  type        = string
+  default     = null
+}
+
 variable "project_name" {
   description = "Logical project name used for tagging and naming conventions."
   type        = string

@@ -105,4 +105,17 @@ Glue assets are uploaded to S3 through Terraform, and the state machine orchestr
 
 `landing_to_bronze -> bronze_to_silver -> silver_to_gold -> validate_catalog`
 
-I did not run `terraform validate` or any `terraform plan/apply` commands from this session, because this repository explicitly requires user authorization before executing Terraform.
+Terraform local usage is documented in [terraform_usage.md](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/docs/terraform_usage.md).
+
+Recommended local flow:
+
+```powershell
+$env:AWS_PROFILE="your-profile"
+terraform -chdir=infra init -backend=false
+terraform -chdir=infra validate
+terraform -chdir=infra plan -var-file="env/dev.tfvars"
+```
+
+You can also create a local non-versioned `infra/env/local.auto.tfvars` from [local.auto.tfvars.example](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/local.auto.tfvars.example) if you prefer not to export `AWS_PROFILE` in every session.
+
+This repository now includes a base GitHub Actions workflow at [.github/workflows/terraform.yml](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/.github/workflows/terraform.yml) for `fmt`, `init`, `validate`, and `plan`. It is designed to use OIDC/assume-role when available, and falls back to AWS secrets if needed.
