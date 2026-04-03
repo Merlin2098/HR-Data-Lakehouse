@@ -21,10 +21,14 @@ EXPECTED_COLUMNS = [
     "relationship_satisfaction",
     "work_life_balance",
     "attrition",
+    "source_file",
+    "run_id",
+    "processed_at_utc",
 ]
 
 EXPECTED_GOLD_COLUMNS = [
     "employee_id",
+    "ingestion_date",
     "year",
     "month",
     "day",
@@ -46,6 +50,9 @@ EXPECTED_GOLD_COLUMNS = [
     "environment_satisfaction_label",
     "relationship_satisfaction_label",
     "work_life_balance_label",
+    "source_file",
+    "run_id",
+    "processed_at_utc",
 ]
 
 
@@ -55,18 +62,22 @@ def test_transformations_config_declares_bronze_to_silver_pipeline() -> None:
 
     assert pipeline["source"]["local_path"] == "data/HR-Employee-Attrition.csv"
     assert pipeline["target"]["format"] == "parquet"
+    assert pipeline["target"]["layout"] == "dataset"
+    assert pipeline["target"]["write_mode"] == "overwrite_full"
     assert pipeline["artifacts"]["query_path"] == "src/queries/bronze_to_silver.sql"
     assert pipeline["artifacts"]["contract_path"] == "src/configs/contracts.yaml"
-    assert pipeline["target"]["local_path"] == "data/output/silver/hr_employees.parquet"
+    assert pipeline["target"]["local_path"] == "data/output/silver/hr_employees"
 
 
 def test_transformations_config_declares_silver_to_gold_pipeline() -> None:
     config = load_yaml_file(resolve_project_path("src/configs/transformations.yaml"))
     pipeline = config["pipelines"]["silver_to_gold"]
 
-    assert pipeline["source"]["local_path"] == "data/output/silver/hr_employees.parquet"
+    assert pipeline["source"]["local_path"] == "data/output/silver/hr_employees"
     assert pipeline["target"]["local_path"] == "data/output/gold/hr_attrition"
-    assert pipeline["target"]["write_mode"] == "overwrite"
+    assert pipeline["target"]["layout"] == "dataset"
+    assert pipeline["target"]["write_mode"] == "overwrite_partition"
+    assert pipeline["target"]["partition_style"] == "hive"
     assert pipeline["target"]["partition_by"] == ["year", "month", "day"]
     assert pipeline["artifacts"]["query_path"] == "src/queries/silver_to_gold.sql"
 

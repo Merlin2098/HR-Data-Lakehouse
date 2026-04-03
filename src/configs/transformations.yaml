@@ -14,10 +14,11 @@ pipelines:
       layer: silver
       dataset_name: silver_hr_employees
       format: parquet
+      layout: dataset
       compression: snappy
-      local_path: data/output/silver/hr_employees.parquet
-      s3_key: hr_attrition/silver/hr_employees.parquet
-      write_mode: overwrite
+      local_path: data/output/silver/hr_employees
+      s3_key: hr_attrition/silver/hr_employees/
+      write_mode: overwrite_full
     artifacts:
       query_path: src/queries/bronze_to_silver.sql
       contract_path: src/configs/contracts.yaml
@@ -29,17 +30,19 @@ pipelines:
       layer: silver
       dataset_name: silver_hr_employees
       format: parquet
-      local_path: data/output/silver/hr_employees.parquet
-      s3_key: hr_attrition/silver/hr_employees.parquet
+      local_path: data/output/silver/hr_employees
+      s3_key: hr_attrition/silver/hr_employees/
       view_name: silver_hr_employees
     target:
       layer: gold
       dataset_name: gold_hr_attrition_fact
       format: parquet
+      layout: dataset
       compression: snappy
       local_path: data/output/gold/hr_attrition
       s3_key: hr_attrition/gold/hr_attrition/
-      write_mode: overwrite
+      write_mode: overwrite_partition
+      partition_style: hive
       partition_by:
         - year
         - month

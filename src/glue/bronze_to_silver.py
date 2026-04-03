@@ -8,7 +8,14 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from src.common.pipeline_runtime import load_pipeline_context, run_csv_to_parquet_pipeline
+from src.common.pipeline_runtime import (
+    default_processed_at_utc,
+    default_run_id,
+    load_pipeline_context,
+    run_csv_to_parquet_pipeline,
+    source_file_name,
+    sql_string_literal,
+)
 
 
 DEFAULT_CONFIG_PATH = "src/configs/transformations.yaml"
@@ -33,6 +40,8 @@ def run_pipeline(
     target_override: str | Path | None = None,
     query_override: str | Path | None = None,
     contract_override: str | Path | None = None,
+    run_id: str | None = None,
+    processed_at_utc: str | None = None,
 ) -> dict[str, object]:
     context = load_pipeline_context(
         config_path,
@@ -42,7 +51,22 @@ def run_pipeline(
         query_override=query_override,
         contract_override=contract_override,
     )
-    return run_csv_to_parquet_pipeline(context)
+    resolved_run_id = run_id or default_run_id()
+    resolved_processed_at_utc = processed_at_utc or default_processed_at_utc()
+    resolved_source_file = source_file_name(context.source_uri)
+    return run_csv_to_parquet_pipeline(
+        context,
+        sql_variables={
+            "source_file": sql_string_literal(resolved_source_file),
+            "run_id": sql_string_literal(resolved_run_id),
+            "processed_at_utc": sql_string_literal(resolved_processed_at_utc),
+        },
+        quality_context={
+            "source_file": resolved_source_file,
+            "run_id": resolved_run_id,
+            "processed_at_utc": resolved_processed_at_utc,
+        },
+    )
 
 
 def main() -> None:

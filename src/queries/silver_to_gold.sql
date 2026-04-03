@@ -1,5 +1,6 @@
 SELECT
   employee_number AS employee_id,
+  CAST({{ingestion_date}} AS DATE) AS ingestion_date,
   CAST({{year}} AS INTEGER) AS year,
   CAST({{month}} AS INTEGER) AS month,
   CAST({{day}} AS INTEGER) AS day,
@@ -40,5 +41,8 @@ SELECT
     WHEN 2 THEN 'medium'
     WHEN 3 THEN 'high'
     WHEN 4 THEN 'very_high'
-  END AS work_life_balance_label
+  END AS work_life_balance_label,
+  CAST({{source_file}} AS VARCHAR) AS source_file,
+  CAST({{run_id}} AS VARCHAR) AS run_id,
+  CAST({{processed_at_utc}} AS TIMESTAMP) AS processed_at_utc
 FROM silver_hr_employees

@@ -4,10 +4,12 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 if __package__ in {None, ""}:
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
+from src.common.pipeline_runtime import default_processed_at_utc
 from src.glue.bronze_to_silver import run_pipeline as run_bronze_to_silver
 from src.glue.silver_to_gold import run_pipeline as run_silver_to_gold
 
@@ -42,12 +44,16 @@ def run_pipeline(
     contract_override: str | Path | None = None,
     ingestion_date_value: str | None = None,
 ) -> dict[str, object]:
+    run_id = uuid4().hex
+    processed_at_utc = default_processed_at_utc()
     silver_result = run_bronze_to_silver(
         config_path=config_path,
         source_override=source_override,
         target_override=silver_target_override,
         query_override=silver_query_override,
         contract_override=contract_override,
+        run_id=run_id,
+        processed_at_utc=processed_at_utc,
     )
     gold_result = run_silver_to_gold(
         config_path=config_path,
@@ -56,6 +62,8 @@ def run_pipeline(
         query_override=gold_query_override,
         contract_override=contract_override,
         ingestion_date_value=ingestion_date_value,
+        run_id=run_id,
+        processed_at_utc=processed_at_utc,
     )
 
     return {

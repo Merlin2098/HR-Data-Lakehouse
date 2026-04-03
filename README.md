@@ -39,8 +39,16 @@ The local pipeline uses:
 - `src/glue/silver_to_gold.py` for the gold stage
 - `src/glue/run_local_pipeline.py` for the full end-to-end local run
 
-By default, the pipeline reads `data/HR-Employee-Attrition.csv`, writes silver parquet to `data/output/silver/hr_employees.parquet`, and writes gold parquet to `data/output/gold/hr_attrition/` using a numeric directory layout `year/month/day` such as `.../2026/4/3/`.
-Gold uses the simpler daily overwrite model, so each run refreshes the partition for that processing day instead of accumulating multiple parquet files in the same folder.
+By default, the pipeline reads `data/HR-Employee-Attrition.csv`, writes silver as a parquet dataset under `data/output/silver/hr_employees/`, and writes gold as a partitioned parquet dataset under `data/output/gold/hr_attrition/` using Hive-style folders such as `.../year=2026/month=4/day=3/`.
+Gold uses a daily partition overwrite model, so each run refreshes only the partition for that processing day instead of rewriting the full dataset.
+
+Both silver and gold now include technical metadata to simulate production-style lineage:
+
+- `source_file`
+- `run_id`
+- `processed_at_utc`
+
+Gold also includes `ingestion_date` alongside the `year/month/day` partition columns.
 
 Run it with the project virtual environment:
 

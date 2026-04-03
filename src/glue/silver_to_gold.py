@@ -9,9 +9,13 @@ if __package__ in {None, ""}:
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from src.common.pipeline_runtime import (
+    default_processed_at_utc,
+    default_run_id,
     load_pipeline_context,
     parse_ingestion_date,
     run_parquet_to_parquet_pipeline,
+    source_file_name,
+    sql_string_literal,
 )
 
 
@@ -42,6 +46,8 @@ def run_pipeline(
     query_override: str | Path | None = None,
     contract_override: str | Path | None = None,
     ingestion_date_value: str | None = None,
+    run_id: str | None = None,
+    processed_at_utc: str | None = None,
 ) -> dict[str, object]:
     context = load_pipeline_context(
         config_path,
@@ -52,6 +58,9 @@ def run_pipeline(
         contract_override=contract_override,
     )
     ingestion_date = parse_ingestion_date(ingestion_date_value)
+    resolved_run_id = run_id or default_run_id()
+    resolved_processed_at_utc = processed_at_utc or default_processed_at_utc()
+    resolved_source_file = source_file_name(context.source_uri)
     partition_by = list(
         context.pipeline_definition.get("target", {}).get("partition_by", ["year", "month", "day"])
     )
@@ -61,8 +70,26 @@ def run_pipeline(
             "year": ingestion_date.year,
             "month": ingestion_date.month,
             "day": ingestion_date.day,
+            "ingestion_date": sql_string_literal(ingestion_date.isoformat()),
+            "source_file": sql_string_literal(resolved_source_file),
+            "run_id": sql_string_literal(resolved_run_id),
+            "processed_at_utc": sql_string_literal(resolved_processed_at_utc),
         },
         partition_by=partition_by,
+        partition_values={
+            "year": ingestion_date.year,
+            "month": ingestion_date.month,
+            "day": ingestion_date.day,
+        },
+        quality_context={
+            "year": ingestion_date.year,
+            "month": ingestion_date.month,
+            "day": ingestion_date.day,
+            "ingestion_date": ingestion_date.isoformat(),
+            "source_file": resolved_source_file,
+            "run_id": resolved_run_id,
+            "processed_at_utc": resolved_processed_at_utc,
+        },
     )
     result["ingestion_date"] = ingestion_date.isoformat()
     return result

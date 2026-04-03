@@ -19,5 +19,8 @@ SELECT
   CASE
     WHEN TRIM(LOWER(CAST(Attrition AS VARCHAR))) IN ('yes', 'true') THEN TRUE
     ELSE FALSE
-  END AS attrition
+  END AS attrition,
+  CAST({{source_file}} AS VARCHAR) AS source_file,
+  CAST({{run_id}} AS VARCHAR) AS run_id,
+  CAST({{processed_at_utc}} AS TIMESTAMP) AS processed_at_utc
 FROM bronze_hr_attrition
