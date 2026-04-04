@@ -213,3 +213,57 @@ def test_data_lake_defines_medallion_prefix_placeholders() -> None:
     assert 'gold/hr_attrition/.keep' in s3_tf
     assert "_is_placeholder_key" in resource_loader
     assert 'if _is_placeholder_key(key):' in resource_loader
+
+
+def test_glue_runtime_is_packaged_minimally_and_attached_to_jobs() -> None:
+    provider_tf = Path(resolve_project_path("infra/provider.tf")).read_text(encoding="utf-8")
+    assets_tf = Path(resolve_project_path("infra/modules/assets/main.tf")).read_text(encoding="utf-8")
+    assets_outputs = Path(resolve_project_path("infra/modules/assets/outputs.tf")).read_text(encoding="utf-8")
+    glue_tf = Path(resolve_project_path("infra/modules/glue/main.tf")).read_text(encoding="utf-8")
+    glue_vars = Path(resolve_project_path("infra/modules/glue/variables.tf")).read_text(encoding="utf-8")
+    root_tf = Path(resolve_project_path("infra/main.tf")).read_text(encoding="utf-8")
+
+    assert 'source  = "hashicorp/archive"' in provider_tf
+    assert 'data "archive_file" "glue_runtime"' in assets_tf
+    assert '"src/common/pipeline_runtime.py"' in assets_tf
+    assert '"src/common/resource_loader.py"' in assets_tf
+    assert 'key    = "runtime/glue_runtime.zip"' in assets_tf
+    assert 'output "glue_runtime_package_key"' in assets_outputs
+    assert 'variable "glue_runtime_package_key"' in glue_vars
+    assert 'glue_runtime_package_uri = "s3://${var.script_bucket}/${var.glue_runtime_package_key}"' in glue_tf
+    assert 'module.assets.glue_runtime_package_key' in root_tf
+    assert glue_tf.count('"--extra-py-files"') == 3
+
+
+def test_pipeline_runtime_loads_duckdb_lazily_for_local_only() -> None:
+    runtime_py = Path(resolve_project_path("src/common/pipeline_runtime.py")).read_text(encoding="utf-8")
+
+    assert "import duckdb" not in runtime_py.splitlines()[:20]
+    assert "def get_duckdb_module():" in runtime_py
+    assert "duckdb = get_duckdb_module()" in runtime_py
+
+
+def test_landing_to_bronze_uses_glueetl_instead_of_python_shell() -> None:
+    glue_tf = Path(resolve_project_path("infra/modules/glue/main.tf")).read_text(encoding="utf-8")
+
+    assert 'resource "aws_glue_job" "landing_to_bronze"' in glue_tf
+    landing_job_block = glue_tf.split('resource "aws_glue_job" "landing_to_bronze" {', 1)[1].split('resource "aws_glue_job" "bronze_to_silver" {', 1)[0]
+    assert 'name            = "glueetl"' in landing_job_block
+    assert 'python_version  = "3"' in landing_job_block
+    assert 'name            = "pythonshell"' not in landing_job_block
+    assert '--extra-py-files' in landing_job_block
+    assert '--execution-mode' in landing_job_block
+    assert '--engine' in landing_job_block
+
+
+def test_glue_entrypoints_use_safe_bootstrap_helper() -> None:
+    landing_script = Path(resolve_project_path("src/glue/landing_to_bronze.py")).read_text(encoding="utf-8")
+    bronze_script = Path(resolve_project_path("src/glue/bronze_to_silver.py")).read_text(encoding="utf-8")
+    gold_script = Path(resolve_project_path("src/glue/silver_to_gold.py")).read_text(encoding="utf-8")
+    project_paths = Path(resolve_project_path("src/common/project_paths.py")).read_text(encoding="utf-8")
+
+    assert "def ensure_src_package_importable" in project_paths
+    for script in (landing_script, bronze_script, gold_script):
+        assert "parents[2]" not in script
+        assert "ensure_src_package_importable(__file__)" in script
+        assert "candidate / \"src\" / \"__init__.py\"" in script

@@ -9,8 +9,6 @@ from pathlib import Path
 from string import Formatter
 from typing import Any
 
-import duckdb
-
 from src.common.config_loader import load_yaml_file
 from src.common.contract_loader import column_definitions, dataset_contract, expected_columns, load_contract
 from src.common.project_paths import ensure_parent_dir, resolve_project_path
@@ -20,6 +18,14 @@ from src.common.s3_utils import build_s3_uri, is_s3_uri
 
 
 TEMPLATE_PATTERN = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+
+
+def get_duckdb_module():
+    try:
+        import duckdb
+    except ImportError as exc:
+        raise RuntimeError("duckdb is required for local duckdb execution.") from exc
+    return duckdb
 
 
 @dataclass(frozen=True)
@@ -332,6 +338,7 @@ def run_duckdb_pipeline(
     partition_values: dict[str, Any],
     quality_context: dict[str, Any],
 ) -> tuple[list[str], str]:
+    duckdb = get_duckdb_module()
     if is_s3_uri(context.source_uri) or is_s3_uri(context.target_uri):
         raise RuntimeError("DuckDB local execution only supports filesystem paths.")
 

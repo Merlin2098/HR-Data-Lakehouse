@@ -1,4 +1,16 @@
 locals {
+  glue_runtime_files = {
+    "src/__init__.py"                = "${path.module}/../../../src/__init__.py"
+    "src/common/__init__.py"         = "${path.module}/../../../src/common/__init__.py"
+    "src/common/config_loader.py"    = "${path.module}/../../../src/common/config_loader.py"
+    "src/common/contract_loader.py"  = "${path.module}/../../../src/common/contract_loader.py"
+    "src/common/pipeline_runtime.py" = "${path.module}/../../../src/common/pipeline_runtime.py"
+    "src/common/project_paths.py"    = "${path.module}/../../../src/common/project_paths.py"
+    "src/common/query_loader.py"     = "${path.module}/../../../src/common/query_loader.py"
+    "src/common/resource_loader.py"  = "${path.module}/../../../src/common/resource_loader.py"
+    "src/common/s3_utils.py"         = "${path.module}/../../../src/common/s3_utils.py"
+  }
+
   assets = {
     landing_to_bronze_script = {
       key    = "glue/landing_to_bronze.py"
@@ -31,6 +43,20 @@ locals {
   }
 }
 
+data "archive_file" "glue_runtime" {
+  type        = "zip"
+  output_path = "${path.root}/.terraform/glue_runtime.zip"
+
+  dynamic "source" {
+    for_each = local.glue_runtime_files
+
+    content {
+      filename = source.key
+      content  = file(source.value)
+    }
+  }
+}
+
 resource "aws_s3_object" "assets" {
   for_each = local.assets
 
@@ -38,4 +64,11 @@ resource "aws_s3_object" "assets" {
   key    = each.value.key
   source = each.value.source
   etag   = filemd5(each.value.source)
+}
+
+resource "aws_s3_object" "glue_runtime_package" {
+  bucket = var.scripts_bucket_name
+  key    = "runtime/glue_runtime.zip"
+  source = data.archive_file.glue_runtime.output_path
+  etag   = data.archive_file.glue_runtime.output_md5
 }

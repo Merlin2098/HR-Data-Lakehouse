@@ -83,6 +83,7 @@ module "glue" {
   silver_to_gold_script_key       = module.assets.silver_to_gold_script_key
   bronze_to_silver_query_key      = module.assets.bronze_to_silver_query_key
   silver_to_gold_query_key        = module.assets.silver_to_gold_query_key
+  glue_runtime_package_key        = module.assets.glue_runtime_package_key
   landing_log_group_name          = local.landing_log_group_name
   bronze_to_silver_log_group_name = local.bronze_to_silver_log_group
   silver_to_gold_log_group_name   = local.silver_to_gold_log_group

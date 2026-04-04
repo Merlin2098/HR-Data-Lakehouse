@@ -68,6 +68,11 @@ variable "silver_to_gold_query_key" {
   type        = string
 }
 
+variable "glue_runtime_package_key" {
+  description = "S3 key for the shared Glue runtime zip package."
+  type        = string
+}
+
 variable "landing_log_group_name" {
   description = "CloudWatch log group name for the landing job."
   type        = string

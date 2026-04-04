@@ -5,8 +5,24 @@ import json
 import sys
 from pathlib import Path
 
-if __package__ in {None, ""}:
-    sys.path.append(str(Path(__file__).resolve().parents[2]))
+
+def _bootstrap_src_package() -> None:
+    bootstrap_script_path = Path(__file__).resolve()
+    for candidate in (bootstrap_script_path.parent, *bootstrap_script_path.parents):
+        if (candidate / "src" / "__init__.py").exists():
+            candidate_str = str(candidate)
+            if candidate_str not in sys.path:
+                sys.path.append(candidate_str)
+            return
+
+
+try:
+    from src.common.project_paths import ensure_src_package_importable
+except ModuleNotFoundError:
+    _bootstrap_src_package()
+    from src.common.project_paths import ensure_src_package_importable
+
+ensure_src_package_importable(__file__)
 
 from src.common.pipeline_runtime import (
     build_quality_context,

@@ -32,3 +32,8 @@ output "silver_to_gold_query_key" {
   description = "S3 key for the silver-to-gold SQL query."
   value       = aws_s3_object.assets["silver_to_gold_query"].key
 }
+
+output "glue_runtime_package_key" {
+  description = "S3 key for the shared Glue runtime package."
+  value       = aws_s3_object.glue_runtime_package.key
+}
