@@ -4,7 +4,7 @@ SELECT
   TRIM(LOWER(JobRole)) AS job_role,
   CAST(JobLevel AS INTEGER) AS job_level,
   CASE
-    WHEN TRIM(LOWER(CAST(OverTime AS VARCHAR))) IN ('yes', 'true') THEN TRUE
+    WHEN TRIM(LOWER(CAST(OverTime AS STRING))) IN ('yes', 'true') THEN TRUE
     ELSE FALSE
   END AS over_time,
   CAST(MonthlyIncome AS DECIMAL(12, 2)) AS monthly_income,
@@ -17,10 +17,10 @@ SELECT
   CAST(RelationshipSatisfaction AS INTEGER) AS relationship_satisfaction,
   CAST(WorkLifeBalance AS INTEGER) AS work_life_balance,
   CASE
-    WHEN TRIM(LOWER(CAST(Attrition AS VARCHAR))) IN ('yes', 'true') THEN TRUE
+    WHEN TRIM(LOWER(CAST(Attrition AS STRING))) IN ('yes', 'true') THEN TRUE
     ELSE FALSE
   END AS attrition,
-  CAST({{source_file}} AS VARCHAR) AS source_file,
-  CAST({{run_id}} AS VARCHAR) AS run_id,
+  CAST({{source_file}} AS STRING) AS source_file,
+  CAST({{run_id}} AS STRING) AS run_id,
   CAST({{processed_at_utc}} AS TIMESTAMP) AS processed_at_utc
 FROM bronze_hr_attrition

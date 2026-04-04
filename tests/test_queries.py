@@ -14,6 +14,8 @@ def test_bronze_to_silver_query_targets_expected_view_and_fields() -> None:
     assert "{{source_file}}" in sql_text
     assert "{{run_id}}" in sql_text
     assert "{{processed_at_utc}}" in sql_text
+    assert "AS STRING" in sql_text
+    assert "VARCHAR" not in sql_text
     assert "data/" not in sql_text
 
 
@@ -30,3 +32,5 @@ def test_silver_to_gold_query_targets_expected_view_and_enrichment() -> None:
     assert "{{processed_at_utc}}" in sql_text
     assert "source_file" in sql_text
     assert "very_high" in sql_text
+    assert "AS STRING" in sql_text
+    assert "VARCHAR" not in sql_text

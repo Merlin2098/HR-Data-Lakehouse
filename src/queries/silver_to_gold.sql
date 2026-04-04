@@ -43,6 +43,6 @@ SELECT
     WHEN 4 THEN 'very_high'
   END AS work_life_balance_label,
   source_file,
-  CAST({{run_id}} AS VARCHAR) AS run_id,
+  CAST({{run_id}} AS STRING) AS run_id,
   CAST({{processed_at_utc}} AS TIMESTAMP) AS processed_at_utc
 FROM silver_hr_employees
