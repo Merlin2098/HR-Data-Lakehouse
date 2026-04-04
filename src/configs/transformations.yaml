@@ -46,7 +46,7 @@ pipelines:
       layout: dataset
       compression: snappy
       local_uri: data/output/silver/hr_employees
-      target_uri: s3://{data_lake_bucket}/silver/hr_attrition/hr_employees/
+      target_uri: s3://{data_lake_bucket}/silver/hr_employees/
       write_mode: overwrite_full
     artifacts:
       config_path: src/configs/transformations.yaml
@@ -64,7 +64,7 @@ pipelines:
       dataset_name: silver_hr_employees
       format: parquet
       local_uri: data/output/silver/hr_employees
-      source_uri: s3://{data_lake_bucket}/silver/hr_attrition/hr_employees/
+      source_uri: s3://{data_lake_bucket}/silver/hr_employees/
       view_name: silver_hr_employees
     target:
       layer: gold
@@ -73,7 +73,7 @@ pipelines:
       layout: dataset
       compression: snappy
       local_uri: data/output/gold/hr_attrition
-      target_uri: s3://{data_lake_bucket}/gold/hr_attrition/hr_attrition/
+      target_uri: s3://{data_lake_bucket}/gold/hr_attrition/
       write_mode: overwrite_partition
       partition_style: hive
       partition_by:

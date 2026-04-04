@@ -18,7 +18,7 @@ resource "aws_glue_catalog_table" "silver" {
   }
 
   storage_descriptor {
-    location      = "s3://${var.data_lake_bucket_name}/silver/hr_attrition/hr_employees/"
+    location      = "s3://${var.data_lake_bucket_name}/silver/hr_employees/"
     input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
     output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
 
@@ -117,7 +117,7 @@ resource "aws_glue_catalog_table" "gold" {
     "projection.month.range"    = "1,12"
     "projection.day.type"       = "integer"
     "projection.day.range"      = "1,31"
-    "storage.location.template" = "s3://${var.data_lake_bucket_name}/gold/hr_attrition/hr_attrition/year=$${year}/month=$${month}/day=$${day}/"
+    "storage.location.template" = "s3://${var.data_lake_bucket_name}/gold/hr_attrition/year=$${year}/month=$${month}/day=$${day}/"
   }
 
   partition_keys {
@@ -134,7 +134,7 @@ resource "aws_glue_catalog_table" "gold" {
   }
 
   storage_descriptor {
-    location      = "s3://${var.data_lake_bucket_name}/gold/hr_attrition/hr_attrition/"
+    location      = "s3://${var.data_lake_bucket_name}/gold/hr_attrition/"
     input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
     output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
 

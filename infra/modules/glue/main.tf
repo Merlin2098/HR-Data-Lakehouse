@@ -9,8 +9,8 @@ locals {
 
   landing_root_uri    = "s3://${var.data_lake_bucket}/bronze/hr_attrition/landing/"
   bronze_raw_root_uri = "s3://${var.data_lake_bucket}/bronze/hr_attrition/raw/"
-  silver_dataset_uri  = "s3://${var.data_lake_bucket}/silver/hr_attrition/hr_employees/"
-  gold_dataset_uri    = "s3://${var.data_lake_bucket}/gold/hr_attrition/hr_attrition/"
+  silver_dataset_uri  = "s3://${var.data_lake_bucket}/silver/hr_employees/"
+  gold_dataset_uri    = "s3://${var.data_lake_bucket}/gold/hr_attrition/"
 
   temp_dir_prefix = "glue-temp"
 }

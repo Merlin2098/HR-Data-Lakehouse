@@ -186,6 +186,13 @@ Responsabilidades:
 - almacenamiento de scripts SQL/YAML/Python
 - resultados de consultas Athena
 
+Rutas fisicas AWS actuales:
+
+- `bronze/hr_attrition/landing/`
+- `bronze/hr_attrition/raw/`
+- `silver/hr_employees/`
+- `gold/hr_attrition/`
+
 #### AWS Glue
 
 Glue es el motor ETL en nube.

@@ -74,7 +74,7 @@ def test_transformations_config_declares_bronze_to_silver_pipeline() -> None:
     assert pipeline["artifacts"]["contract_path"] == "src/configs/contracts.yaml"
     assert pipeline["artifacts"]["config_uri"] == "s3://{scripts_bucket}/configs/transformations.yaml"
     assert pipeline["target"]["local_uri"] == "data/output/silver/hr_employees"
-    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/silver/hr_attrition/hr_employees/"
+    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/silver/hr_employees/"
 
 
 def test_transformations_config_declares_silver_to_gold_pipeline() -> None:
@@ -82,9 +82,9 @@ def test_transformations_config_declares_silver_to_gold_pipeline() -> None:
     pipeline = config["pipelines"]["silver_to_gold"]
 
     assert pipeline["source"]["local_uri"] == "data/output/silver/hr_employees"
-    assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/silver/hr_attrition/hr_employees/"
+    assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/silver/hr_employees/"
     assert pipeline["target"]["local_uri"] == "data/output/gold/hr_attrition"
-    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/gold/hr_attrition/hr_attrition/"
+    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/gold/hr_attrition/"
     assert pipeline["target"]["layout"] == "dataset"
     assert pipeline["target"]["write_mode"] == "overwrite_partition"
     assert pipeline["target"]["partition_style"] == "hive"
@@ -209,7 +209,7 @@ def test_data_lake_defines_medallion_prefix_placeholders() -> None:
     assert 'resource "aws_s3_object" "data_lake_prefix_placeholders"' in s3_tf
     assert 'bronze/hr_attrition/landing/.keep' in s3_tf
     assert 'bronze/hr_attrition/raw/.keep' in s3_tf
-    assert 'silver/hr_attrition/hr_employees/.keep' in s3_tf
-    assert 'gold/hr_attrition/hr_attrition/.keep' in s3_tf
+    assert 'silver/hr_employees/.keep' in s3_tf
+    assert 'gold/hr_attrition/.keep' in s3_tf
     assert "_is_placeholder_key" in resource_loader
     assert 'if _is_placeholder_key(key):' in resource_loader

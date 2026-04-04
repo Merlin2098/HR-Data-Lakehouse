@@ -31,11 +31,11 @@ flowchart TB
 
     SF --> J2["Glue Job<br/>bronze_to_silver"]
     S3B --> J2
-    J2 --> S3S["S3 Data Lake Bucket<br/>silver/hr_attrition/hr_employees/"]
+    J2 --> S3S["S3 Data Lake Bucket<br/>silver/hr_employees/"]
 
     SF --> J3["Glue Job<br/>silver_to_gold"]
     S3S --> J3
-    J3 --> S3G["S3 Data Lake Bucket<br/>gold/hr_attrition/hr_attrition/"]
+    J3 --> S3G["S3 Data Lake Bucket<br/>gold/hr_attrition/"]
 
     SF --> ATHV["Athena Validation"]
     S3G --> GC["Glue Catalog"]

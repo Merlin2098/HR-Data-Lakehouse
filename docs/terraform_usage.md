@@ -42,6 +42,7 @@ Nota operativa sobre buckets:
 - `root` de la cuenta y los ARNs declarados en `scripts_bucket_reader_arns` tienen acceso de solo lectura al bucket `scripts`
 - Terraform crea placeholders `.keep` en los prefijos medallion operativos del bucket `data_lake`
 - esos placeholders solo hacen visible la estructura base y no reemplazan la carga de datos reales
+- las rutas fisicas curadas en AWS estan normalizadas como `silver/hr_employees/` y `gold/hr_attrition/`
 
 ## Opciones para autenticacion local
 
