@@ -10,6 +10,10 @@ from src.common.project_paths import resolve_project_path
 from src.common.s3_utils import build_s3_uri, is_s3_uri, split_s3_uri
 
 
+def _is_placeholder_key(value: str) -> bool:
+    return value.endswith("/.keep") or value.endswith("\\.keep") or value.endswith(".keep")
+
+
 def _s3_client():
     try:
         import boto3
@@ -68,12 +72,15 @@ def list_resource_objects(value: str | Path) -> list[str]:
         keys: list[str] = []
         for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
             for item in page.get("Contents", []):
-                keys.append(build_s3_uri(bucket, item["Key"]))
+                key = item["Key"]
+                if _is_placeholder_key(key):
+                    continue
+                keys.append(build_s3_uri(bucket, key))
         return keys
 
     path = Path(resource_ref)
     if path.is_dir():
-        return [str(item) for item in sorted(path.rglob("*")) if item.is_file()]
+        return [str(item) for item in sorted(path.rglob("*")) if item.is_file() and not _is_placeholder_key(item.name)]
     return [str(path)]
 
 

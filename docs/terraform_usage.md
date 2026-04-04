@@ -40,6 +40,8 @@ Nota operativa sobre buckets:
 - `data_lake` y `athena-results` siguen con `SSE-KMS`
 - `scripts` usa `SSE-S3 (AES256)` para facilitar inspeccion manual en demo
 - `root` de la cuenta y los ARNs declarados en `scripts_bucket_reader_arns` tienen acceso de solo lectura al bucket `scripts`
+- Terraform crea placeholders `.keep` en los prefijos medallion operativos del bucket `data_lake`
+- esos placeholders solo hacen visible la estructura base y no reemplazan la carga de datos reales
 
 ## Opciones para autenticacion local
 

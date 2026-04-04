@@ -200,3 +200,16 @@ def test_scripts_bucket_uses_aes256_and_explicit_reader_policy() -> None:
     assert '["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]' in root_tf
     assert "scripts_bucket_reader_arns" in root_tf
     assert '"arn:aws:iam::184670914470:user/admin2"' in dev_tfvars
+
+
+def test_data_lake_defines_medallion_prefix_placeholders() -> None:
+    s3_tf = Path(resolve_project_path("infra/modules/s3/main.tf")).read_text(encoding="utf-8")
+    resource_loader = Path(resolve_project_path("src/common/resource_loader.py")).read_text(encoding="utf-8")
+
+    assert 'resource "aws_s3_object" "data_lake_prefix_placeholders"' in s3_tf
+    assert 'bronze/hr_attrition/landing/.keep' in s3_tf
+    assert 'bronze/hr_attrition/raw/.keep' in s3_tf
+    assert 'silver/hr_attrition/hr_employees/.keep' in s3_tf
+    assert 'gold/hr_attrition/hr_attrition/.keep' in s3_tf
+    assert "_is_placeholder_key" in resource_loader
+    assert 'if _is_placeholder_key(key):' in resource_loader

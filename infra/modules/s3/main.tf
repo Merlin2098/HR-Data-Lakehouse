@@ -4,6 +4,13 @@ locals {
     scripts        = lower("${var.name_prefix}-${var.environment}-${var.account_id}-${var.region}-scripts")
     athena_results = lower("${var.name_prefix}-${var.environment}-${var.account_id}-${var.region}-athena-results")
   }
+
+  medallion_prefix_placeholders = {
+    bronze_landing = "bronze/hr_attrition/landing/.keep"
+    bronze_raw     = "bronze/hr_attrition/raw/.keep"
+    silver_dataset = "silver/hr_attrition/hr_employees/.keep"
+    gold_dataset   = "gold/hr_attrition/hr_attrition/.keep"
+  }
 }
 
 data "aws_iam_policy_document" "scripts_bucket_readers" {
@@ -113,6 +120,14 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "scripts" {
 resource "aws_s3_bucket_notification" "data_lake_eventbridge" {
   bucket      = aws_s3_bucket.data_lake.id
   eventbridge = true
+}
+
+resource "aws_s3_object" "data_lake_prefix_placeholders" {
+  for_each = local.medallion_prefix_placeholders
+
+  bucket  = aws_s3_bucket.data_lake.id
+  key     = each.value
+  content = ""
 }
 
 resource "aws_s3_bucket_policy" "scripts" {
