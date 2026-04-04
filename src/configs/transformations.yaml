@@ -16,14 +16,14 @@ pipelines:
       dataset_name: landing_hr_employee_attrition
       format: csv
       local_uri: data/HR-Employee-Attrition.csv
-      source_uri: s3://{bronze_bucket}/hr_attrition/landing/
+      source_uri: s3://{data_lake_bucket}/bronze/hr_attrition/landing/
     target:
       layer: bronze
       dataset_name: bronze_hr_employee_attrition
       format: csv
       layout: dataset
       local_uri: data/output/bronze/hr_attrition/raw
-      target_uri: s3://{bronze_bucket}/hr_attrition/raw/
+      target_uri: s3://{data_lake_bucket}/bronze/hr_attrition/raw/
       write_mode: immutable
     artifacts:
       config_path: src/configs/transformations.yaml
@@ -37,7 +37,7 @@ pipelines:
       dataset_name: raw_hr_employee_attrition
       format: csv
       local_uri: data/HR-Employee-Attrition.csv
-      source_uri: s3://{bronze_bucket}/hr_attrition/raw/
+      source_uri: s3://{data_lake_bucket}/bronze/hr_attrition/raw/
       view_name: bronze_hr_attrition
     target:
       layer: silver
@@ -46,7 +46,7 @@ pipelines:
       layout: dataset
       compression: snappy
       local_uri: data/output/silver/hr_employees
-      target_uri: s3://{silver_bucket}/hr_attrition/silver/hr_employees/
+      target_uri: s3://{data_lake_bucket}/silver/hr_attrition/hr_employees/
       write_mode: overwrite_full
     artifacts:
       config_path: src/configs/transformations.yaml
@@ -64,7 +64,7 @@ pipelines:
       dataset_name: silver_hr_employees
       format: parquet
       local_uri: data/output/silver/hr_employees
-      source_uri: s3://{silver_bucket}/hr_attrition/silver/hr_employees/
+      source_uri: s3://{data_lake_bucket}/silver/hr_attrition/hr_employees/
       view_name: silver_hr_employees
     target:
       layer: gold
@@ -73,7 +73,7 @@ pipelines:
       layout: dataset
       compression: snappy
       local_uri: data/output/gold/hr_attrition
-      target_uri: s3://{gold_bucket}/hr_attrition/gold/hr_attrition/
+      target_uri: s3://{data_lake_bucket}/gold/hr_attrition/hr_attrition/
       write_mode: overwrite_partition
       partition_style: hive
       partition_by:

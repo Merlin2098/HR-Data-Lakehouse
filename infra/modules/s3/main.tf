@@ -1,26 +1,14 @@
 locals {
   bucket_names = {
-    bronze         = lower("${var.name_prefix}-${var.environment}-${var.account_id}-${var.region}-bronze")
-    silver         = lower("${var.name_prefix}-${var.environment}-${var.account_id}-${var.region}-silver")
-    gold           = lower("${var.name_prefix}-${var.environment}-${var.account_id}-${var.region}-gold")
+    data_lake      = lower("${var.name_prefix}-${var.environment}-${var.account_id}-${var.region}-data-lake")
     scripts        = lower("${var.name_prefix}-${var.environment}-${var.account_id}-${var.region}-scripts")
     athena_results = lower("${var.name_prefix}-${var.environment}-${var.account_id}-${var.region}-athena-results")
   }
 }
 
-resource "aws_s3_bucket" "bronze" {
-  bucket = local.bucket_names.bronze
-  tags   = merge(var.common_tags, { Layer = "bronze" })
-}
-
-resource "aws_s3_bucket" "silver" {
-  bucket = local.bucket_names.silver
-  tags   = merge(var.common_tags, { Layer = "silver" })
-}
-
-resource "aws_s3_bucket" "gold" {
-  bucket = local.bucket_names.gold
-  tags   = merge(var.common_tags, { Layer = "gold" })
+resource "aws_s3_bucket" "data_lake" {
+  bucket = local.bucket_names.data_lake
+  tags   = merge(var.common_tags, { Layer = "data-lake" })
 }
 
 resource "aws_s3_bucket" "scripts" {
@@ -35,9 +23,7 @@ resource "aws_s3_bucket" "athena_results" {
 
 resource "aws_s3_bucket_versioning" "buckets" {
   for_each = {
-    bronze         = aws_s3_bucket.bronze.id
-    silver         = aws_s3_bucket.silver.id
-    gold           = aws_s3_bucket.gold.id
+    data_lake      = aws_s3_bucket.data_lake.id
     scripts        = aws_s3_bucket.scripts.id
     athena_results = aws_s3_bucket.athena_results.id
   }
@@ -51,9 +37,7 @@ resource "aws_s3_bucket_versioning" "buckets" {
 
 resource "aws_s3_bucket_public_access_block" "buckets" {
   for_each = {
-    bronze         = aws_s3_bucket.bronze.id
-    silver         = aws_s3_bucket.silver.id
-    gold           = aws_s3_bucket.gold.id
+    data_lake      = aws_s3_bucket.data_lake.id
     scripts        = aws_s3_bucket.scripts.id
     athena_results = aws_s3_bucket.athena_results.id
   }
@@ -67,9 +51,7 @@ resource "aws_s3_bucket_public_access_block" "buckets" {
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "buckets" {
   for_each = {
-    bronze         = aws_s3_bucket.bronze.id
-    silver         = aws_s3_bucket.silver.id
-    gold           = aws_s3_bucket.gold.id
+    data_lake      = aws_s3_bucket.data_lake.id
     scripts        = aws_s3_bucket.scripts.id
     athena_results = aws_s3_bucket.athena_results.id
   }
@@ -85,8 +67,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "buckets" {
   }
 }
 
-resource "aws_s3_bucket_notification" "bronze_eventbridge" {
-  bucket      = aws_s3_bucket.bronze.id
+resource "aws_s3_bucket_notification" "data_lake_eventbridge" {
+  bucket      = aws_s3_bucket.data_lake.id
   eventbridge = true
 }
 

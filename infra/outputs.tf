@@ -1,16 +1,6 @@
-output "bronze_bucket_name" {
-  description = "Bronze bucket name."
-  value       = module.s3.bronze_bucket_name
-}
-
-output "silver_bucket_name" {
-  description = "Silver bucket name."
-  value       = module.s3.silver_bucket_name
-}
-
-output "gold_bucket_name" {
-  description = "Gold bucket name."
-  value       = module.s3.gold_bucket_name
+output "data_lake_bucket_name" {
+  description = "Shared data lake bucket name."
+  value       = module.s3.data_lake_bucket_name
 }
 
 output "scripts_bucket_name" {

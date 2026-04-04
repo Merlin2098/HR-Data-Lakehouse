@@ -7,9 +7,10 @@ locals {
   bronze_query_uri        = "s3://${var.script_bucket}/${var.bronze_to_silver_query_key}"
   gold_query_uri          = "s3://${var.script_bucket}/${var.silver_to_gold_query_key}"
 
-  bronze_raw_root_uri = "s3://${var.bronze_bucket}/hr_attrition/raw/"
-  silver_dataset_uri  = "s3://${var.silver_bucket}/hr_attrition/silver/hr_employees/"
-  gold_dataset_uri    = "s3://${var.gold_bucket}/hr_attrition/gold/hr_attrition/"
+  landing_root_uri    = "s3://${var.data_lake_bucket}/bronze/hr_attrition/landing/"
+  bronze_raw_root_uri = "s3://${var.data_lake_bucket}/bronze/hr_attrition/raw/"
+  silver_dataset_uri  = "s3://${var.data_lake_bucket}/silver/hr_attrition/hr_employees/"
+  gold_dataset_uri    = "s3://${var.data_lake_bucket}/gold/hr_attrition/hr_attrition/"
 
   temp_dir_prefix = "glue-temp"
 }

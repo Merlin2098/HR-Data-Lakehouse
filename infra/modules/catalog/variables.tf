@@ -3,13 +3,8 @@ variable "database_name" {
   type        = string
 }
 
-variable "silver_bucket_name" {
-  description = "Silver bucket name."
-  type        = string
-}
-
-variable "gold_bucket_name" {
-  description = "Gold bucket name."
+variable "data_lake_bucket_name" {
+  description = "Shared data lake bucket name."
   type        = string
 }
 

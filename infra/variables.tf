@@ -43,7 +43,7 @@ variable "athena_workgroup_name" {
 variable "landing_prefix" {
   description = "S3 prefix monitored for landing file arrivals."
   type        = string
-  default     = "hr_attrition/landing/"
+  default     = "bronze/hr_attrition/landing/"
 }
 
 variable "landing_suffix" {

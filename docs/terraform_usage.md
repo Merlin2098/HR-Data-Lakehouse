@@ -28,6 +28,12 @@ Los archivos principales están en:
 - [dev.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/dev.tfvars)
 - [prod.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/prod.tfvars)
 
+La topología actual usa:
+
+- 1 bucket `data_lake` por entorno con prefijos `bronze/`, `silver/` y `gold/`
+- 1 bucket separado para `scripts`
+- 1 bucket separado para `athena-results`
+
 ## Opciones para autenticación local
 
 ### Opción recomendada: `AWS_PROFILE`

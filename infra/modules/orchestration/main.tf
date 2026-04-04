@@ -6,7 +6,7 @@ locals {
     "detail-type" = ["Object Created"]
     detail = {
       bucket = {
-        name = [var.bronze_bucket_name]
+        name = [var.data_lake_bucket_name]
       }
       object = {
         key = [

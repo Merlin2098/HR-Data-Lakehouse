@@ -48,8 +48,8 @@ variable "gold_table_name" {
   type        = string
 }
 
-variable "bronze_bucket_name" {
-  description = "Bronze bucket name."
+variable "data_lake_bucket_name" {
+  description = "Shared data lake bucket name."
   type        = string
 }
 

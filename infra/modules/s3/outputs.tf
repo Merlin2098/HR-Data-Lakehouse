@@ -1,16 +1,6 @@
-output "bronze_bucket_name" {
-  description = "Bronze bucket name."
-  value       = aws_s3_bucket.bronze.bucket
-}
-
-output "silver_bucket_name" {
-  description = "Silver bucket name."
-  value       = aws_s3_bucket.silver.bucket
-}
-
-output "gold_bucket_name" {
-  description = "Gold bucket name."
-  value       = aws_s3_bucket.gold.bucket
+output "data_lake_bucket_name" {
+  description = "Shared data lake bucket name."
+  value       = aws_s3_bucket.data_lake.bucket
 }
 
 output "scripts_bucket_name" {
@@ -23,19 +13,9 @@ output "athena_results_bucket_name" {
   value       = aws_s3_bucket.athena_results.bucket
 }
 
-output "bronze_bucket_arn" {
-  description = "Bronze bucket ARN."
-  value       = aws_s3_bucket.bronze.arn
-}
-
-output "silver_bucket_arn" {
-  description = "Silver bucket ARN."
-  value       = aws_s3_bucket.silver.arn
-}
-
-output "gold_bucket_arn" {
-  description = "Gold bucket ARN."
-  value       = aws_s3_bucket.gold.arn
+output "data_lake_bucket_arn" {
+  description = "Shared data lake bucket ARN."
+  value       = aws_s3_bucket.data_lake.arn
 }
 
 output "scripts_bucket_arn" {

@@ -18,18 +18,8 @@ variable "account_id" {
   type        = string
 }
 
-variable "bronze_bucket_arn" {
-  description = "ARN of the bronze bucket."
-  type        = string
-}
-
-variable "silver_bucket_arn" {
-  description = "ARN of the silver bucket."
-  type        = string
-}
-
-variable "gold_bucket_arn" {
-  description = "ARN of the gold bucket."
+variable "data_lake_bucket_arn" {
+  description = "ARN of the shared data lake bucket."
   type        = string
 }
 

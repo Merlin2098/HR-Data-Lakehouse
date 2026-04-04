@@ -21,21 +21,21 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    U["Source CSV Upload"] --> S3L["S3 Bronze Bucket<br/>hr_attrition/landing/"]
+    U["Source CSV Upload"] --> S3L["S3 Data Lake Bucket<br/>bronze/hr_attrition/landing/"]
     S3L --> EV["S3 Object Created Event"]
     EV --> EB["EventBridge Rule"]
     EB --> SF["Step Functions State Machine"]
 
     SF --> J1["Glue Job<br/>landing_to_bronze"]
-    J1 --> S3B["S3 Bronze Bucket<br/>raw/ingestion_date=YYYY-MM-DD/"]
+    J1 --> S3B["S3 Data Lake Bucket<br/>bronze/hr_attrition/raw/ingestion_date=YYYY-MM-DD/"]
 
     SF --> J2["Glue Job<br/>bronze_to_silver"]
     S3B --> J2
-    J2 --> S3S["S3 Silver Bucket<br/>hr_employees parquet dataset"]
+    J2 --> S3S["S3 Data Lake Bucket<br/>silver/hr_attrition/hr_employees/"]
 
     SF --> J3["Glue Job<br/>silver_to_gold"]
     S3S --> J3
-    J3 --> S3G["S3 Gold Bucket<br/>partitioned parquet dataset"]
+    J3 --> S3G["S3 Data Lake Bucket<br/>gold/hr_attrition/hr_attrition/"]
 
     SF --> ATHV["Athena Validation"]
     S3G --> GC["Glue Catalog"]

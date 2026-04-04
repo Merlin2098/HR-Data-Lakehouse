@@ -5,12 +5,8 @@ locals {
   step_functions_policy    = "${var.name_prefix}-${var.environment}-sfn-runtime"
 
   s3_resource_arns = [
-    var.bronze_bucket_arn,
-    "${var.bronze_bucket_arn}/*",
-    var.silver_bucket_arn,
-    "${var.silver_bucket_arn}/*",
-    var.gold_bucket_arn,
-    "${var.gold_bucket_arn}/*",
+    var.data_lake_bucket_arn,
+    "${var.data_lake_bucket_arn}/*",
     var.scripts_bucket_arn,
     "${var.scripts_bucket_arn}/*",
     var.athena_results_bucket_arn,

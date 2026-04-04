@@ -36,7 +36,7 @@ La logica de negocio no vive hardcodeada en Python. Se divide de esta manera:
 Es la zona de llegada del archivo fuente.
 
 - En local, el dataset base es [HR-Employee-Attrition.csv](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/data/HR-Employee-Attrition.csv)
-- En AWS, el archivo llega al bucket bronze bajo el prefijo `hr_attrition/landing/`
+- En AWS, el archivo llega al bucket compartido de data lake bajo el prefijo `bronze/hr_attrition/landing/`
 - El trigger del pipeline se basa en la creacion de un objeto CSV en ese prefijo
 
 Landing no aplica transformaciones de negocio. Solo representa el punto de entrada.
@@ -156,11 +156,11 @@ En AWS el pipeline esta modelado para usar:
 
 ### Trigger del ETL
 
-El procesamiento se gatilla cuando se crea un CSV en el prefijo de landing del bucket bronze.
+El procesamiento se gatilla cuando se crea un CSV en el prefijo de landing dentro de `bronze/` del bucket compartido de data lake.
 
 Flujo esperado:
 
-1. S3 recibe el archivo en `hr_attrition/landing/`
+1. S3 recibe el archivo en `bronze/hr_attrition/landing/`
 2. S3 publica el evento hacia EventBridge
 3. EventBridge filtra `Object Created` para el bucket/prefijo/sufijo correcto
 4. EventBridge inicia la state machine de Step Functions
@@ -174,17 +174,15 @@ Flujo esperado:
 
 #### S3
 
-Se usan buckets dedicados para:
+Se usan estos buckets:
 
-- `bronze`
-- `silver`
-- `gold`
+- `data_lake`
 - `scripts`
 - `athena-results`
 
 Responsabilidades:
 
-- almacenamiento raw y curado
+- almacenamiento raw y curado por prefijos `bronze/`, `silver/` y `gold/`
 - almacenamiento de scripts SQL/YAML/Python
 - resultados de consultas Athena
 

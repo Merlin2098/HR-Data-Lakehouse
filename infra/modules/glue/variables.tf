@@ -28,18 +28,8 @@ variable "script_bucket" {
   type        = string
 }
 
-variable "bronze_bucket" {
-  description = "Bronze bucket name."
-  type        = string
-}
-
-variable "silver_bucket" {
-  description = "Silver bucket name."
-  type        = string
-}
-
-variable "gold_bucket" {
-  description = "Gold bucket name."
+variable "data_lake_bucket" {
+  description = "Shared data lake bucket name."
   type        = string
 }
 

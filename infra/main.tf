@@ -55,9 +55,7 @@ module "iam" {
   environment               = var.environment
   region                    = data.aws_region.current.name
   account_id                = data.aws_caller_identity.current.account_id
-  bronze_bucket_arn         = module.s3.bronze_bucket_arn
-  silver_bucket_arn         = module.s3.silver_bucket_arn
-  gold_bucket_arn           = module.s3.gold_bucket_arn
+  data_lake_bucket_arn      = module.s3.data_lake_bucket_arn
   scripts_bucket_arn        = module.s3.scripts_bucket_arn
   athena_results_bucket_arn = module.s3.athena_results_bucket_arn
   kms_key_arn               = module.kms.kms_key_arn
@@ -73,9 +71,7 @@ module "glue" {
   silver_to_gold_job_name         = local.silver_to_gold_job_name
   role_arn                        = module.iam.glue_role_arn
   script_bucket                   = module.s3.scripts_bucket_name
-  bronze_bucket                   = module.s3.bronze_bucket_name
-  silver_bucket                   = module.s3.silver_bucket_name
-  gold_bucket                     = module.s3.gold_bucket_name
+  data_lake_bucket                = module.s3.data_lake_bucket_name
   config_key                      = module.assets.config_key
   contract_key                    = module.assets.contract_key
   landing_script_key              = module.assets.landing_to_bronze_script_key
@@ -93,8 +89,7 @@ module "glue" {
 module "catalog" {
   source                = "./modules/catalog"
   database_name         = var.athena_database_name
-  silver_bucket_name    = module.s3.silver_bucket_name
-  gold_bucket_name      = module.s3.gold_bucket_name
+  data_lake_bucket_name = module.s3.data_lake_bucket_name
   year_projection_range = var.year_projection_range
   common_tags           = local.resource_tags
 }
@@ -119,7 +114,7 @@ module "orchestration" {
   athena_workgroup_name         = module.athena.workgroup_name
   athena_database_name          = module.catalog.database_name
   gold_table_name               = module.catalog.gold_table_name
-  bronze_bucket_name            = module.s3.bronze_bucket_name
+  data_lake_bucket_name         = module.s3.data_lake_bucket_name
   landing_prefix                = var.landing_prefix
   landing_suffix                = var.landing_suffix
   step_functions_log_group_name = local.step_functions_log_group

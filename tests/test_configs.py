@@ -65,7 +65,7 @@ def test_transformations_config_declares_bronze_to_silver_pipeline() -> None:
     pipeline = config["pipelines"]["bronze_to_silver"]
 
     assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition.csv"
-    assert pipeline["source"]["source_uri"] == "s3://{bronze_bucket}/hr_attrition/raw/"
+    assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/bronze/hr_attrition/raw/"
     assert pipeline["target"]["format"] == "parquet"
     assert pipeline["target"]["layout"] == "dataset"
     assert pipeline["target"]["write_mode"] == "overwrite_full"
@@ -74,7 +74,7 @@ def test_transformations_config_declares_bronze_to_silver_pipeline() -> None:
     assert pipeline["artifacts"]["contract_path"] == "src/configs/contracts.yaml"
     assert pipeline["artifacts"]["config_uri"] == "s3://{scripts_bucket}/configs/transformations.yaml"
     assert pipeline["target"]["local_uri"] == "data/output/silver/hr_employees"
-    assert pipeline["target"]["target_uri"] == "s3://{silver_bucket}/hr_attrition/silver/hr_employees/"
+    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/silver/hr_attrition/hr_employees/"
 
 
 def test_transformations_config_declares_silver_to_gold_pipeline() -> None:
@@ -82,9 +82,9 @@ def test_transformations_config_declares_silver_to_gold_pipeline() -> None:
     pipeline = config["pipelines"]["silver_to_gold"]
 
     assert pipeline["source"]["local_uri"] == "data/output/silver/hr_employees"
-    assert pipeline["source"]["source_uri"] == "s3://{silver_bucket}/hr_attrition/silver/hr_employees/"
+    assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/silver/hr_attrition/hr_employees/"
     assert pipeline["target"]["local_uri"] == "data/output/gold/hr_attrition"
-    assert pipeline["target"]["target_uri"] == "s3://{gold_bucket}/hr_attrition/gold/hr_attrition/"
+    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/gold/hr_attrition/hr_attrition/"
     assert pipeline["target"]["layout"] == "dataset"
     assert pipeline["target"]["write_mode"] == "overwrite_partition"
     assert pipeline["target"]["partition_style"] == "hive"
@@ -97,8 +97,8 @@ def test_transformations_config_declares_landing_to_bronze_pipeline() -> None:
     pipeline = config["pipelines"]["landing_to_bronze"]
 
     assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition.csv"
-    assert pipeline["source"]["source_uri"] == "s3://{bronze_bucket}/hr_attrition/landing/"
-    assert pipeline["target"]["target_uri"] == "s3://{bronze_bucket}/hr_attrition/raw/"
+    assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/bronze/hr_attrition/landing/"
+    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/bronze/hr_attrition/raw/"
     assert pipeline["target"]["write_mode"] == "immutable"
 
 
@@ -128,13 +128,13 @@ def test_event_driven_orchestration_replaces_scheduler_resources() -> None:
     orchestration_tf = Path(resolve_project_path("infra/modules/orchestration/main.tf")).read_text(encoding="utf-8")
 
     assert "aws_scheduler_schedule" not in orchestration_tf
-    assert 'detail-type = ["Object Created"]' in orchestration_tf
+    assert '"detail-type" = ["Object Created"]' in orchestration_tf
     assert 'wildcard = local.landing_object_pattern' in orchestration_tf
     assert 'states:StartExecution' in orchestration_tf
 
 
-def test_bronze_bucket_forwards_events_to_eventbridge() -> None:
+def test_data_lake_bucket_forwards_events_to_eventbridge() -> None:
     s3_tf = Path(resolve_project_path("infra/modules/s3/main.tf")).read_text(encoding="utf-8")
 
-    assert 'resource "aws_s3_bucket_notification" "bronze_eventbridge"' in s3_tf
+    assert 'resource "aws_s3_bucket_notification" "data_lake_eventbridge"' in s3_tf
     assert "eventbridge = true" in s3_tf
