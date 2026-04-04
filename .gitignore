@@ -19,6 +19,7 @@ infra/env/local.auto.tfvars
 .env.*.local
 .venv/
 data/
+logs/
 __pycache__/
 .pytest_cache/
 .pytest_tmp/
