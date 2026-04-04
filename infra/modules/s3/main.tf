@@ -6,6 +6,40 @@ locals {
   }
 }
 
+data "aws_iam_policy_document" "scripts_bucket_readers" {
+  statement {
+    sid    = "AllowScriptsBucketInspection"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = var.scripts_bucket_reader_arns
+    }
+
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [aws_s3_bucket.scripts.arn]
+  }
+
+  statement {
+    sid    = "AllowScriptsObjectReads"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = var.scripts_bucket_reader_arns
+    }
+
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+    ]
+    resources = ["${aws_s3_bucket.scripts.arn}/*"]
+  }
+}
+
 resource "aws_s3_bucket" "data_lake" {
   bucket = local.bucket_names.data_lake
   tags   = merge(var.common_tags, { Layer = "data-lake" })
@@ -52,7 +86,6 @@ resource "aws_s3_bucket_public_access_block" "buckets" {
 resource "aws_s3_bucket_server_side_encryption_configuration" "buckets" {
   for_each = {
     data_lake      = aws_s3_bucket.data_lake.id
-    scripts        = aws_s3_bucket.scripts.id
     athena_results = aws_s3_bucket.athena_results.id
   }
 
@@ -67,9 +100,24 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "buckets" {
   }
 }
 
+resource "aws_s3_bucket_server_side_encryption_configuration" "scripts" {
+  bucket = aws_s3_bucket.scripts.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
 resource "aws_s3_bucket_notification" "data_lake_eventbridge" {
   bucket      = aws_s3_bucket.data_lake.id
   eventbridge = true
+}
+
+resource "aws_s3_bucket_policy" "scripts" {
+  bucket = aws_s3_bucket.scripts.id
+  policy = data.aws_iam_policy_document.scripts_bucket_readers.json
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "athena_results" {

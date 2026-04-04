@@ -23,6 +23,12 @@ variable "kms_key_arn" {
   type        = string
 }
 
+variable "scripts_bucket_reader_arns" {
+  description = "IAM principal ARNs allowed to inspect the scripts bucket."
+  type        = list(string)
+  default     = []
+}
+
 variable "common_tags" {
   description = "Tags applied to every bucket."
   type        = map(string)

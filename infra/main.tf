@@ -40,6 +40,10 @@ module "s3" {
   region      = data.aws_region.current.name
   account_id  = data.aws_caller_identity.current.account_id
   kms_key_arn = module.kms.kms_key_arn
+  scripts_bucket_reader_arns = concat(
+    ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"],
+    var.scripts_bucket_reader_arns,
+  )
   common_tags = local.resource_tags
 }
 

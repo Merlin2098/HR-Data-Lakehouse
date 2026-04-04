@@ -57,6 +57,12 @@ variable "alert_email_endpoints" {
   default     = []
 }
 
+variable "scripts_bucket_reader_arns" {
+  description = "Additional IAM principal ARNs granted read-only inspection access to the scripts bucket."
+  type        = list(string)
+  default     = []
+}
+
 variable "landing_prefix" {
   description = "S3 prefix monitored for landing file arrivals."
   type        = string

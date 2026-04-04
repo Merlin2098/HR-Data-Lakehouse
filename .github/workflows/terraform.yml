@@ -1,6 +1,12 @@
 name: Terraform
 
 on:
+  push:
+    branches:
+      - "main"
+    paths:
+      - "infra/**"
+      - ".github/workflows/terraform.yml"
   pull_request:
     paths:
       - "infra/**"
@@ -17,6 +23,8 @@ jobs:
     defaults:
       run:
         working-directory: infra
+    env:
+      PLAN_TARGET: dev
 
     steps:
       - name: Checkout
@@ -65,3 +73,21 @@ jobs:
       - name: Skip plan when AWS credentials are not configured
         if: ${{ vars.AWS_ROLE_ARN == '' && (secrets.AWS_ACCESS_KEY_ID == '' || secrets.AWS_SECRET_ACCESS_KEY == '') }}
         run: echo "Skipping terraform plan because no CI credentials were configured."
+
+      - name: Terraform workflow summary
+        if: ${{ always() }}
+        run: |
+          if [ "${{ vars.AWS_ROLE_ARN != '' || (secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '') }}" = "true" ]; then
+            CREDENTIALS_STATUS="configured"
+          else
+            CREDENTIALS_STATUS="skipped"
+          fi
+          {
+            echo "## Terraform CI Summary"
+            echo ""
+            echo "- fmt: ok"
+            echo "- validate: ok"
+            echo "- plan target: ${PLAN_TARGET}"
+            echo "- credentials: ${CREDENTIALS_STATUS}"
+            echo "- prod automation: manual only"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -6,7 +6,7 @@ Este documento define como usar Terraform en este repo de forma:
 
 - local-friendly para pruebas manuales
 - reusable para otros developers
-- compatible con una futura ejecución por CI/CD
+- compatible con una futura ejecucion por CI/CD
 
 ## Principios
 
@@ -21,23 +21,29 @@ El root module vive en:
 
 - [main.tf](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/main.tf)
 
-Los archivos principales están en:
+Los archivos principales estan en:
 
 - [provider.tf](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/provider.tf)
 - [variables.tf](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/variables.tf)
 - [dev.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/dev.tfvars)
 - [prod.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/prod.tfvars)
 
-La topología actual usa:
+La topologia actual usa:
 
 - 1 bucket `data_lake` por entorno con prefijos `bronze/`, `silver/` y `gold/`
 - 1 bucket separado para `scripts`
 - 1 bucket separado para `athena-results`
 - 1 AWS Budget mensual por entorno para seguimiento de gasto
 
-## Opciones para autenticación local
+Nota operativa sobre buckets:
 
-### Opción recomendada: `AWS_PROFILE`
+- `data_lake` y `athena-results` siguen con `SSE-KMS`
+- `scripts` usa `SSE-S3 (AES256)` para facilitar inspeccion manual en demo
+- `root` de la cuenta y los ARNs declarados en `scripts_bucket_reader_arns` tienen acceso de solo lectura al bucket `scripts`
+
+## Opciones para autenticacion local
+
+### Opcion recomendada: `AWS_PROFILE`
 
 Esta es la forma preferida para trabajar localmente:
 
@@ -54,9 +60,9 @@ Ventajas:
 - cada developer puede usar su propio perfil
 - se parece al comportamiento esperado en AWS SDK/CLI
 
-### Opción opcional: `local.auto.tfvars`
+### Opcion opcional: `local.auto.tfvars`
 
-Si quieres evitar exportar variables en cada sesión, puedes crear un archivo local no versionado:
+Si quieres evitar exportar variables en cada sesion, puedes crear un archivo local no versionado:
 
 - `infra/env/local.auto.tfvars`
 
@@ -71,9 +77,9 @@ aws_profile = "admin2"
 aws_region  = "us-east-1"
 ```
 
-Ese archivo está ignorado por Git para no contaminar el repo.
+Ese archivo esta ignorado por Git para no contaminar el repo.
 
-## Convención de comandos
+## Convencion de comandos
 
 ### Windows PowerShell
 
@@ -93,7 +99,7 @@ terraform -chdir=infra validate
 terraform -chdir=infra plan -var-file=env/dev.tfvars
 ```
 
-## Prerrequisito mínimo
+## Prerrequisito minimo
 
 Antes de correr `terraform plan`, esta llamada debe funcionar:
 
@@ -101,7 +107,7 @@ Antes de correr `terraform plan`, esta llamada debe funcionar:
 aws sts get-caller-identity --region us-east-1
 ```
 
-Si eso falla, Terraform también fallará por credenciales.
+Si eso falla, Terraform tambien fallara por credenciales.
 
 ## CI/CD
 
@@ -112,7 +118,13 @@ La estrategia esperada para CI/CD es:
 - `terraform validate`
 - `terraform plan -var-file=env/dev.tfvars`
 
-Autenticación recomendada:
+Triggers actuales del workflow:
+
+- `push` a `main`
+- `pull_request`
+- `workflow_dispatch`
+
+Autenticacion recomendada:
 
 - `OIDC + assume role` en AWS
 
@@ -121,15 +133,16 @@ Fallback aceptable:
 - credenciales temporales inyectadas como secrets del pipeline
 
 No se debe usar `aws_profile` dentro del pipeline CI/CD.
+El `plan` automatico de GitHub Actions esta acotado a `dev`; `prod` sigue siendo manual en esta etapa.
 
-## FinOps bÃ¡sico
+## FinOps basico
 
 El control de gasto se define en:
 
 - [dev.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/dev.tfvars)
 - [prod.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/prod.tfvars)
 
-Variable relevante:
+Variables relevantes:
 
 - `monthly_budget_limit_usd`
 - `alert_email_endpoints`
@@ -139,23 +152,23 @@ Comportamiento actual:
 - 1 budget mensual por entorno
 - alertas al `80%` y `100%`
 - seguimiento de `actual spend` y `forecasted spend`
-- envÃ­o de alertas al SNS del mÃ³dulo de observabilidad
+- envio de alertas al SNS del modulo de observabilidad
 - suscripciones opcionales por email administradas con Terraform
 
 Notas:
 
 - el budget monitorea gasto, no bloquea despliegues
-- la separaciÃ³n por entorno depende del tag `Environment`
+- la separacion por entorno depende del tag `Environment`
 - para que el filtro por tag sea efectivo en AWS Budgets, el cost allocation tag `Environment` debe estar activado en Billing
-- los correos SNS requieren confirmaciÃ³n manual despuÃ©s del `apply`
-- el topic SNS estÃ¡ cifrado con KMS, por eso existen policies explÃ­citas para SNS y Budgets
+- los correos SNS requieren confirmacion manual despues del `apply`
+- el topic SNS esta cifrado con KMS, por eso existen policies explicitas para SNS y Budgets
 
 ## Backend
 
-En esta iteración el repositorio queda preparado para:
+En esta iteracion el repositorio queda preparado para:
 
 - pruebas locales
-- validación por CI/CD
+- validacion por CI/CD
 
 usando:
 

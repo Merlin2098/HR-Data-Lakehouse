@@ -173,3 +173,30 @@ def test_observability_topic_accepts_budgets_and_supports_email_subscriptions() 
     assert 'for_each = toset(var.alert_email_endpoints)' in observability_tf
     assert 'identifiers = ["sns.amazonaws.com"]' in kms_tf
     assert 'variable = "aws:SourceAccount"' in kms_tf
+
+
+def test_github_actions_workflow_runs_on_main_and_targets_dev() -> None:
+    workflow = Path(resolve_project_path(".github/workflows/terraform.yml")).read_text(encoding="utf-8")
+
+    assert "push:" in workflow
+    assert '      - "main"' in workflow
+    assert 'terraform plan -var-file="env/dev.tfvars" -input=false' in workflow
+    assert "Terraform CI Summary" in workflow
+    assert "prod automation: manual only" in workflow
+
+
+def test_scripts_bucket_uses_aes256_and_explicit_reader_policy() -> None:
+    s3_tf = Path(resolve_project_path("infra/modules/s3/main.tf")).read_text(encoding="utf-8")
+    root_tf = Path(resolve_project_path("infra/main.tf")).read_text(encoding="utf-8")
+    dev_tfvars = Path(resolve_project_path("infra/env/dev.tfvars")).read_text(encoding="utf-8")
+
+    assert 'resource "aws_s3_bucket_server_side_encryption_configuration" "scripts"' in s3_tf
+    assert 'sse_algorithm = "AES256"' in s3_tf
+    assert 'kms_master_key_id = var.kms_key_arn' in s3_tf
+    assert 'resource "aws_s3_bucket_policy" "scripts"' in s3_tf
+    assert '"s3:GetObject"' in s3_tf
+    assert '"s3:GetObjectVersion"' in s3_tf
+    assert '"s3:ListBucket"' in s3_tf
+    assert '["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]' in root_tf
+    assert "scripts_bucket_reader_arns" in root_tf
+    assert '"arn:aws:iam::184670914470:user/admin2"' in dev_tfvars
