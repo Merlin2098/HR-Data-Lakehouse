@@ -44,6 +44,48 @@ Nota operativa sobre buckets:
 - esos placeholders solo hacen visible la estructura base y no reemplazan la carga de datos reales
 - las rutas fisicas curadas en AWS estan normalizadas como `silver/hr_employees/` y `gold/hr_attrition/`
 
+## Trigger y retry del pipeline
+
+Trigger automatico en AWS:
+
+- subir un CSV a `s3://<data_lake_bucket>/bronze/hr_attrition/landing/<archivo>.csv`
+- EventBridge detecta `Object Created`
+- Step Functions normaliza el payload y ejecuta:
+  - `landing_to_bronze`
+  - `bronze_to_silver`
+  - `silver_to_gold`
+  - `validate_catalog`
+- cada task Glue conserva `business_date`, `run_id` y `source_filename` en el payload raiz y adjunta su resultado en subcampos dedicados
+
+Retry manual sin reupload:
+
+- obtener el ARN de la state machine:
+
+```powershell
+$env:AWS_PROFILE="admin2"
+terraform -chdir=infra output -raw state_machine_arn
+```
+
+- reprocesar un objeto ya existente en S3:
+
+```powershell
+$env:AWS_PROFILE="admin2"
+$stateMachineArn = terraform -chdir=infra output -raw state_machine_arn
+.\.venv\Scripts\python.exe src\glue\retry_state_machine.py `
+  --state-machine-arn $stateMachineArn `
+  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition.csv" `
+  --business-date 2026-04-04
+```
+
+Notas operativas:
+
+- el helper construye el input manual esperado por `NormalizeManualInput`
+- `source_filename` se deriva del ultimo segmento del key S3
+- `business_date` se controla de forma explicita y no se infiere del nombre del archivo
+- si omites `--run-id`, el helper genera uno nuevo
+- si omites `--event-time`, el helper usa el timestamp UTC actual
+- no se vuelve a subir el archivo; el objeto debe existir previamente en `landing`
+
 ## Opciones para autenticacion local
 
 ### Opcion recomendada: `AWS_PROFILE`

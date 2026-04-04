@@ -43,6 +43,11 @@ output "state_machine_arn" {
   value       = module.orchestration.state_machine_arn
 }
 
+output "state_machine_name" {
+  description = "Step Functions state machine name."
+  value       = module.orchestration.state_machine_name
+}
+
 output "event_rule_name" {
   description = "EventBridge rule name that triggers the state machine from S3 events."
   value       = module.orchestration.event_rule_name

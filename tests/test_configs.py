@@ -267,3 +267,50 @@ def test_glue_entrypoints_use_safe_bootstrap_helper() -> None:
         assert "parents[2]" not in script
         assert "ensure_src_package_importable(__file__)" in script
         assert "candidate / \"src\" / \"__init__.py\"" in script
+
+
+def test_glue_entrypoints_tolerate_unknown_glue_arguments() -> None:
+    landing_script = Path(resolve_project_path("src/glue/landing_to_bronze.py")).read_text(encoding="utf-8")
+    bronze_script = Path(resolve_project_path("src/glue/bronze_to_silver.py")).read_text(encoding="utf-8")
+    gold_script = Path(resolve_project_path("src/glue/silver_to_gold.py")).read_text(encoding="utf-8")
+
+    for script in (landing_script, bronze_script, gold_script):
+        assert "parse_known_args()" in script
+        assert "return parser.parse_args()" not in script
+
+
+def test_state_machine_uses_last_key_segment_for_source_filename_and_exposes_manual_retry_shape() -> None:
+    orchestration_tf = Path(resolve_project_path("infra/modules/orchestration/main.tf")).read_text(encoding="utf-8")
+    outputs_tf = Path(resolve_project_path("infra/outputs.tf")).read_text(encoding="utf-8")
+
+    assert 'States.ArrayLength(States.StringSplit($.detail.object.key, \'/\'))' in orchestration_tf
+    assert 'States.MathAdd(States.ArrayLength(States.StringSplit($.detail.object.key, \'/\')), -1)' in orchestration_tf
+    assert 'States.ArrayGetItem(States.StringSplit($.detail.object.key, \'/\'), 2)' not in orchestration_tf
+    assert '"source_filename.$" = "$.source_filename"' in orchestration_tf
+    assert 'output "state_machine_name"' in outputs_tf
+
+
+def test_state_machine_preserves_normalized_context_between_glue_tasks() -> None:
+    orchestration_tf = Path(resolve_project_path("infra/modules/orchestration/main.tf")).read_text(encoding="utf-8")
+
+    assert 'ResultPath = "$.landing_to_bronze_result"' in orchestration_tf
+    assert 'ResultPath = "$.bronze_to_silver_result"' in orchestration_tf
+    assert 'ResultPath = "$.silver_to_gold_result"' in orchestration_tf
+    assert '"--business-date.$"   = "$.business_date"' in orchestration_tf
+    assert '"--run-id.$"          = "$.run_id"' in orchestration_tf
+    assert '"--source-filename.$" = "$.source_filename"' in orchestration_tf
+
+
+def test_manual_retry_helper_starts_step_functions_execution_from_existing_landing_object() -> None:
+    retry_helper = Path(resolve_project_path("src/glue/retry_state_machine.py")).read_text(encoding="utf-8")
+
+    assert 'boto3.client("stepfunctions")' in retry_helper
+    assert "start_execution" in retry_helper
+    assert "--source-uri" in retry_helper
+    assert "--bucket" in retry_helper
+    assert "--object-key" in retry_helper
+    assert "--state-machine-arn" in retry_helper
+    assert "--state-machine-name" in retry_helper
+    assert '"source_filename": source_filename' in retry_helper
+    assert '"bucket_name": bucket_name' in retry_helper
+    assert '"object_key": object_key' in retry_helper

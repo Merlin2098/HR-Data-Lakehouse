@@ -47,7 +47,7 @@ locals {
           "business_date.$"   = "States.ArrayGetItem(States.StringSplit($.time, 'T'), 0)"
           "run_id.$"          = "$.id"
           "source_uri.$"      = "States.Format('s3://{}/{}', $.detail.bucket.name, $.detail.object.key)"
-          "source_filename.$" = "States.ArrayGetItem(States.StringSplit($.detail.object.key, '/'), 2)"
+          "source_filename.$" = "States.ArrayGetItem(States.StringSplit($.detail.object.key, '/'), States.MathAdd(States.ArrayLength(States.StringSplit($.detail.object.key, '/')), -1))"
         }
         ResultPath = "$"
         Next       = "PromoteLandingToBronze"
@@ -82,7 +82,8 @@ locals {
             "--source-filename.$" = "$.source_filename"
           }
         }
-        Next = "BronzeToSilver"
+        ResultPath = "$.landing_to_bronze_result"
+        Next       = "BronzeToSilver"
       }
       BronzeToSilver = {
         Type     = "Task"
@@ -95,7 +96,8 @@ locals {
             "--source-filename.$" = "$.source_filename"
           }
         }
-        Next = "SilverToGold"
+        ResultPath = "$.bronze_to_silver_result"
+        Next       = "SilverToGold"
       }
       SilverToGold = {
         Type     = "Task"
@@ -107,7 +109,8 @@ locals {
             "--run-id.$"        = "$.run_id"
           }
         }
-        Next = "ValidateCatalog"
+        ResultPath = "$.silver_to_gold_result"
+        Next       = "ValidateCatalog"
       }
       ValidateCatalog = {
         Type     = "Task"

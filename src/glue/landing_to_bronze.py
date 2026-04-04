@@ -42,7 +42,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-uri", dest="target_uri", help="Alias for --target in AWS.")
     parser.add_argument("--business-date", help="Optional business date in ISO format.")
     parser.add_argument("--source-filename", help="Optional filename override for the promoted raw object.")
-    return parser.parse_args()
+    args, _ = parser.parse_known_args()
+    return args
 
 
 def build_bronze_raw_target(target_root: str, business_date_value: str | None, source_filename: str) -> str:

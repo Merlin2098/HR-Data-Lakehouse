@@ -60,7 +60,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ingestion-date", help="Optional ingestion date in ISO format (YYYY-MM-DD).")
     parser.add_argument("--run-id", help="Explicit run identifier.")
     parser.add_argument("--processed-at-utc", help="Explicit UTC processing timestamp.")
-    return parser.parse_args()
+    args, _ = parser.parse_known_args()
+    return args
 
 
 def run_pipeline(

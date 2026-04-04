@@ -107,6 +107,25 @@ Glue assets are uploaded to S3 through Terraform, and the state machine orchestr
 
 `landing_to_bronze -> bronze_to_silver -> silver_to_gold -> validate_catalog`
 
+Automatic trigger in AWS:
+
+1. Upload a CSV to `s3://<data_lake_bucket>/bronze/hr_attrition/landing/<file>.csv`
+2. EventBridge forwards the S3 event to Step Functions
+3. The state machine normalizes the filename from the last path segment, preserves the execution payload across Glue tasks, and starts the Glue chain
+
+Manual retry for an existing landing object:
+
+```powershell
+$env:AWS_PROFILE="admin2"
+$stateMachineArn = terraform -chdir=infra output -raw state_machine_arn
+.\.venv\Scripts\python.exe src\glue\retry_state_machine.py `
+  --state-machine-arn $stateMachineArn `
+  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition.csv" `
+  --business-date 2026-04-04
+```
+
+The retry helper does not upload files. It only starts a new Step Functions execution for an object that already exists in S3, and it derives `source_filename` from the final key segment automatically.
+
 Terraform local usage is documented in [terraform_usage.md](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/docs/terraform_usage.md).
 
 Recommended local flow:

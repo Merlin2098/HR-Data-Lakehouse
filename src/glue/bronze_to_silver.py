@@ -65,7 +65,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-filename", help="Expected raw source filename for AWS bronze ingestion.")
     parser.add_argument("--run-id", help="Explicit run identifier.")
     parser.add_argument("--processed-at-utc", help="Explicit UTC processing timestamp.")
-    return parser.parse_args()
+    args, _ = parser.parse_known_args()
+    return args
 
 
 def resolve_bronze_source_uri(source_uri: str, ingestion_date_value: str | None, source_filename: str) -> str:
