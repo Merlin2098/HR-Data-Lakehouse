@@ -40,6 +40,23 @@ variable "athena_workgroup_name" {
   default     = "hr-attrition-analytics"
 }
 
+variable "monthly_budget_limit_usd" {
+  description = "Monthly AWS Budget threshold for the selected environment."
+  type        = number
+}
+
+variable "budget_name_override" {
+  description = "Optional override for the AWS Budget name."
+  type        = string
+  default     = null
+}
+
+variable "alert_email_endpoints" {
+  description = "Email endpoints subscribed to the shared SNS alerts topic."
+  type        = list(string)
+  default     = []
+}
+
 variable "landing_prefix" {
   description = "S3 prefix monitored for landing file arrivals."
   type        = string

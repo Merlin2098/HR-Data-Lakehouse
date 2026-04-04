@@ -124,10 +124,24 @@ module "orchestration" {
 }
 
 module "observability" {
-  source             = "./modules/observability"
-  kms_key_arn        = module.kms.kms_key_arn
-  glue_job_names     = module.glue.job_names
-  state_machine_name = module.orchestration.state_machine_name
-  state_machine_arn  = module.orchestration.state_machine_arn
-  common_tags        = local.resource_tags
+  source                = "./modules/observability"
+  account_id            = data.aws_caller_identity.current.account_id
+  kms_key_arn           = module.kms.kms_key_arn
+  glue_job_names        = module.glue.job_names
+  state_machine_name    = module.orchestration.state_machine_name
+  state_machine_arn     = module.orchestration.state_machine_arn
+  alert_email_endpoints = var.alert_email_endpoints
+  common_tags           = local.resource_tags
+}
+
+module "budgets" {
+  source                   = "./modules/budgets"
+  account_id               = data.aws_caller_identity.current.account_id
+  name_prefix              = var.name_prefix
+  project_name             = var.project_name
+  environment              = var.environment
+  monthly_budget_limit_usd = var.monthly_budget_limit_usd
+  sns_topic_arn            = module.observability.alerts_topic_arn
+  budget_name_override     = var.budget_name_override
+  common_tags              = local.resource_tags
 }

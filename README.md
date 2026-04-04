@@ -11,6 +11,7 @@ The current scope now covers:
 - Step Functions orchestration triggered by `S3 Object Created` events through EventBridge
 - Glue Catalog + Athena workgroup for analytics
 - CloudWatch/SNS observability scaffolding
+- AWS Budgets per environment with SNS cost alerts
 - A local application pipeline in `src/` with externalized YAML, SQL, and data contracts
 
 ## Repository layout
@@ -100,6 +101,7 @@ The Terraform configuration under `infra/` now models an AWS production-style MV
 - `athena`
 - `orchestration`
 - `observability`
+- `budgets`
 
 Glue assets are uploaded to S3 through Terraform, and the state machine orchestrates the medallion flow when a new CSV lands in the `bronze/` landing prefix inside the shared data lake bucket:
 
@@ -119,3 +121,6 @@ terraform -chdir=infra plan -var-file="env/dev.tfvars"
 You can also create a local non-versioned `infra/env/local.auto.tfvars` from [local.auto.tfvars.example](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/local.auto.tfvars.example) if you prefer not to export `AWS_PROFILE` in every session.
 
 This repository now includes a base GitHub Actions workflow at [.github/workflows/terraform.yml](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/.github/workflows/terraform.yml) for `fmt`, `init`, `validate`, and `plan`. It is designed to use OIDC/assume-role when available, and falls back to AWS secrets if needed.
+
+AWS cost control is also modeled in Terraform through a monthly budget per environment, with `80%` and `100%` alerts for both actual and forecasted spend routed to the shared SNS alerts topic.
+The shared SNS topic now supports optional email subscriptions via Terraform, but each recipient must still confirm the subscription manually from the AWS email they receive.

@@ -107,6 +107,8 @@ Completed in code/IaC:
 - Step Functions orchestration
 - EventBridge rule triggered by `S3 Object Created`
 - CloudWatch/SNS observability scaffolding
+- AWS Budgets scaffolding for monthly cost tracking per environment
+- SNS budget alert delivery scaffolding with optional email subscriptions
 
 Pending AWS validation:
 

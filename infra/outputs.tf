@@ -47,3 +47,13 @@ output "event_rule_name" {
   description = "EventBridge rule name that triggers the state machine from S3 events."
   value       = module.orchestration.event_rule_name
 }
+
+output "budget_name" {
+  description = "Monthly AWS Budget name for the environment."
+  value       = module.budgets.budget_name
+}
+
+output "budget_limit_amount" {
+  description = "Monthly AWS Budget threshold amount in USD."
+  value       = module.budgets.budget_limit_amount
+}

@@ -67,6 +67,29 @@ data "aws_iam_policy_document" "lakehouse" {
       values   = ["true"]
     }
   }
+
+  statement {
+    sid    = "AllowSnsServiceUsage"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["sns.amazonaws.com"]
+    }
+
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey",
+    ]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
 }
 
 resource "aws_kms_key" "lakehouse" {

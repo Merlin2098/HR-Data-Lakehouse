@@ -33,6 +33,7 @@ La topología actual usa:
 - 1 bucket `data_lake` por entorno con prefijos `bronze/`, `silver/` y `gold/`
 - 1 bucket separado para `scripts`
 - 1 bucket separado para `athena-results`
+- 1 AWS Budget mensual por entorno para seguimiento de gasto
 
 ## Opciones para autenticación local
 
@@ -120,6 +121,34 @@ Fallback aceptable:
 - credenciales temporales inyectadas como secrets del pipeline
 
 No se debe usar `aws_profile` dentro del pipeline CI/CD.
+
+## FinOps bÃ¡sico
+
+El control de gasto se define en:
+
+- [dev.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/dev.tfvars)
+- [prod.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/prod.tfvars)
+
+Variable relevante:
+
+- `monthly_budget_limit_usd`
+- `alert_email_endpoints`
+
+Comportamiento actual:
+
+- 1 budget mensual por entorno
+- alertas al `80%` y `100%`
+- seguimiento de `actual spend` y `forecasted spend`
+- envÃ­o de alertas al SNS del mÃ³dulo de observabilidad
+- suscripciones opcionales por email administradas con Terraform
+
+Notas:
+
+- el budget monitorea gasto, no bloquea despliegues
+- la separaciÃ³n por entorno depende del tag `Environment`
+- para que el filtro por tag sea efectivo en AWS Budgets, el cost allocation tag `Environment` debe estar activado en Billing
+- los correos SNS requieren confirmaciÃ³n manual despuÃ©s del `apply`
+- el topic SNS estÃ¡ cifrado con KMS, por eso existen policies explÃ­citas para SNS y Budgets
 
 ## Backend
 

@@ -1,7 +1,41 @@
+data "aws_iam_policy_document" "alerts_topic" {
+  statement {
+    sid    = "AllowBudgetsPublish"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["budgets.amazonaws.com"]
+    }
+
+    actions   = ["SNS:Publish"]
+    resources = [aws_sns_topic.alerts.arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [var.account_id]
+    }
+  }
+}
+
 resource "aws_sns_topic" "alerts" {
   name              = "${var.state_machine_name}-alerts"
   kms_master_key_id = var.kms_key_arn
   tags              = var.common_tags
+}
+
+resource "aws_sns_topic_policy" "alerts" {
+  arn    = aws_sns_topic.alerts.arn
+  policy = data.aws_iam_policy_document.alerts_topic.json
+}
+
+resource "aws_sns_topic_subscription" "email" {
+  for_each = toset(var.alert_email_endpoints)
+
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "email"
+  endpoint  = each.value
 }
 
 resource "aws_cloudwatch_metric_alarm" "glue_job_failures" {

@@ -138,3 +138,38 @@ def test_data_lake_bucket_forwards_events_to_eventbridge() -> None:
 
     assert 'resource "aws_s3_bucket_notification" "data_lake_eventbridge"' in s3_tf
     assert "eventbridge = true" in s3_tf
+
+
+def test_budgets_module_defines_monthly_cost_budget_with_sns_alerts() -> None:
+    budgets_tf = Path(resolve_project_path("infra/modules/budgets/main.tf")).read_text(encoding="utf-8")
+
+    assert 'resource "aws_budgets_budget" "monthly_cost"' in budgets_tf
+    assert 'budget_type  = "COST"' in budgets_tf
+    assert 'time_unit    = "MONTHLY"' in budgets_tf
+    assert 'format("user:Environment$%s", var.environment)' in budgets_tf
+    assert 'subscriber_sns_topic_arns = [var.sns_topic_arn]' in budgets_tf
+    assert budgets_tf.count('threshold                 = 80') == 2
+    assert budgets_tf.count('threshold                 = 100') == 2
+    assert budgets_tf.count('notification_type         = "ACTUAL"') == 2
+    assert budgets_tf.count('notification_type         = "FORECASTED"') == 2
+
+
+def test_root_module_wires_budgets_to_observability_topic() -> None:
+    root_tf = Path(resolve_project_path("infra/main.tf")).read_text(encoding="utf-8")
+
+    assert 'module "budgets"' in root_tf
+    assert 'sns_topic_arn            = module.observability.alerts_topic_arn' in root_tf
+    assert 'monthly_budget_limit_usd = var.monthly_budget_limit_usd' in root_tf
+
+
+def test_observability_topic_accepts_budgets_and_supports_email_subscriptions() -> None:
+    observability_tf = Path(resolve_project_path("infra/modules/observability/main.tf")).read_text(encoding="utf-8")
+    kms_tf = Path(resolve_project_path("infra/modules/kms/main.tf")).read_text(encoding="utf-8")
+
+    assert 'resource "aws_sns_topic_policy" "alerts"' in observability_tf
+    assert 'identifiers = ["budgets.amazonaws.com"]' in observability_tf
+    assert 'actions   = ["SNS:Publish"]' in observability_tf
+    assert 'resource "aws_sns_topic_subscription" "email"' in observability_tf
+    assert 'for_each = toset(var.alert_email_endpoints)' in observability_tf
+    assert 'identifiers = ["sns.amazonaws.com"]' in kms_tf
+    assert 'variable = "aws:SourceAccount"' in kms_tf
