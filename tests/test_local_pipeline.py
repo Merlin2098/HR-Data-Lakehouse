@@ -7,7 +7,9 @@ import uuid
 import pyarrow as pa
 import pyarrow.dataset as ds
 
+from src.common.pipeline_runtime import PipelineContext, ensure_materialized_output
 from src.common.project_paths import resolve_project_path
+from src.common.resource_loader import list_resource_objects, resource_exists
 from src.glue.bronze_to_silver import run_pipeline as run_bronze_to_silver
 from src.glue.landing_to_bronze import resolve_source_filename, run_pipeline as run_landing_to_bronze
 from src.glue.run_local_pipeline import run_pipeline as run_local_pipeline
@@ -254,3 +256,98 @@ def test_gold_overwrite_partition_replaces_only_the_current_day() -> None:
     assert current_day_partition.exists()
     assert len(list(previous_day_partition.glob("*.parquet"))) == 1
     assert len(list(current_day_partition.glob("*.parquet"))) == 1
+
+
+class FakeS3Exceptions:
+    class ClientError(Exception):
+        pass
+
+
+class FakeS3Paginator:
+    def __init__(self, contents: list[str], expected_prefix: str):
+        self.contents = contents
+        self.expected_prefix = expected_prefix
+
+    def paginate(self, *, Bucket: str, Prefix: str):
+        assert Bucket == "demo-lake"
+        assert Prefix == self.expected_prefix
+        yield {"Contents": [{"Key": key} for key in self.contents]}
+
+
+class FakeS3Client:
+    exceptions = FakeS3Exceptions()
+
+    def __init__(self, *, expected_prefix: str, contents: list[str]):
+        self.expected_prefix = expected_prefix
+        self.contents = contents
+
+    def list_objects_v2(self, *, Bucket: str, Prefix: str, MaxKeys: int | None = None):
+        assert Bucket == "demo-lake"
+        assert Prefix == self.expected_prefix
+        visible_objects = [key for key in self.contents if key.startswith(Prefix)]
+        return {"KeyCount": min(len(visible_objects), MaxKeys or len(visible_objects))}
+
+    def get_paginator(self, operation_name: str):
+        assert operation_name == "list_objects_v2"
+        return FakeS3Paginator(self.contents, self.expected_prefix)
+
+    def head_object(self, *, Bucket: str, Key: str):
+        raise self.exceptions.ClientError()
+
+
+def test_resource_helpers_support_s3_partition_prefixes(monkeypatch) -> None:
+    partition_prefix = "gold/hr_attrition/year=2026/month=4/day=4/"
+    partition_object = f"{partition_prefix}part-00000.snappy.parquet"
+    fake_client = FakeS3Client(expected_prefix=partition_prefix, contents=[partition_object])
+
+    monkeypatch.setattr("src.common.resource_loader._s3_client", lambda: fake_client)
+
+    partition_uri = "s3://demo-lake/gold/hr_attrition/year=2026/month=4/day=4"
+    assert resource_exists(partition_uri, treat_as_prefix=True) is True
+    assert list_resource_objects(partition_uri, treat_as_prefix=True) == [f"s3://demo-lake/{partition_object}"]
+
+
+def test_ensure_materialized_output_treats_s3_partitions_as_prefixes(monkeypatch) -> None:
+    calls: list[tuple[str, str, bool]] = []
+
+    def fake_resource_exists(value, *, treat_as_prefix: bool = False):
+        calls.append(("exists", str(value), treat_as_prefix))
+        return True
+
+    def fake_list_resource_objects(value, *, treat_as_prefix: bool = False):
+        calls.append(("list", str(value), treat_as_prefix))
+        return ["s3://demo-lake/gold/hr_attrition/year=2026/month=4/day=4/part-00000.snappy.parquet"]
+
+    monkeypatch.setattr("src.common.pipeline_runtime.resource_exists", fake_resource_exists)
+    monkeypatch.setattr("src.common.pipeline_runtime.list_resource_objects", fake_list_resource_objects)
+
+    context = PipelineContext(
+        pipeline_name="silver_to_gold",
+        config_ref="src/configs/transformations.yaml",
+        pipeline_definition={},
+        query_ref="src/queries/silver_to_gold.sql",
+        contract_ref="src/configs/contracts.yaml",
+        source_uri="s3://demo-lake/silver/hr_employees/",
+        target_uri="s3://demo-lake/gold/hr_attrition/",
+        source_format="parquet",
+        source_view_name="silver_hr_employees",
+        target_dataset_name="gold_hr_attrition_fact",
+        output_compression="snappy",
+        write_mode="overwrite_partition",
+        target_layout="dataset",
+        partition_style="hive",
+        execution_mode="aws",
+        engine="glue_spark",
+    )
+
+    ensure_materialized_output(
+        context,
+        partition_by=["year", "month", "day"],
+        partition_values={"year": 2026, "month": 4, "day": 4},
+    )
+
+    expected_partition_uri = "s3://demo-lake/gold/hr_attrition/year=2026/month=4/day=4"
+    assert calls == [
+        ("exists", expected_partition_uri, True),
+        ("list", expected_partition_uri, True),
+    ]

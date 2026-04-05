@@ -617,9 +617,10 @@ def ensure_materialized_output(
 ) -> None:
     if partition_by:
         partition_location = build_partition_location(context.target_uri, partition_by, partition_values, context.partition_style)
-        if not resource_exists(partition_location):
+        s3_partition_prefix = is_s3_uri(str(partition_location))
+        if not resource_exists(partition_location, treat_as_prefix=s3_partition_prefix):
             raise FileNotFoundError(f"Expected partition output was not created: {partition_location}")
-        if not list_resource_objects(partition_location):
+        if not list_resource_objects(partition_location, treat_as_prefix=s3_partition_prefix):
             raise FileNotFoundError(f"No materialized files were found under {partition_location}")
         return
 

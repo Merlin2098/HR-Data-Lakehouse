@@ -22,6 +22,11 @@ def _s3_client():
     return boto3.client("s3")
 
 
+def _s3_prefix(key: str) -> str:
+    normalized_key = key.rstrip("/")
+    return f"{normalized_key}/" if normalized_key else normalized_key
+
+
 def resolve_resource_reference(value: str | Path) -> str:
     text_value = str(value)
     if is_s3_uri(text_value):
@@ -46,13 +51,14 @@ def load_yaml_resource(value: str | Path) -> dict[str, Any]:
     return loaded
 
 
-def resource_exists(value: str | Path) -> bool:
+def resource_exists(value: str | Path, *, treat_as_prefix: bool = False) -> bool:
     resource_ref = resolve_resource_reference(value)
     if is_s3_uri(resource_ref):
         bucket, key = split_s3_uri(resource_ref)
         client = _s3_client()
-        if key.endswith("/"):
-            response = client.list_objects_v2(Bucket=bucket, Prefix=key, MaxKeys=1)
+        if treat_as_prefix or key.endswith("/"):
+            prefix = _s3_prefix(key) if treat_as_prefix else key
+            response = client.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=1)
             return response.get("KeyCount", 0) > 0
         try:
             client.head_object(Bucket=bucket, Key=key)
@@ -63,10 +69,12 @@ def resource_exists(value: str | Path) -> bool:
     return Path(resource_ref).exists()
 
 
-def list_resource_objects(value: str | Path) -> list[str]:
+def list_resource_objects(value: str | Path, *, treat_as_prefix: bool = False) -> list[str]:
     resource_ref = resolve_resource_reference(value)
     if is_s3_uri(resource_ref):
         bucket, prefix = split_s3_uri(resource_ref)
+        if treat_as_prefix:
+            prefix = _s3_prefix(prefix)
         client = _s3_client()
         paginator = client.get_paginator("list_objects_v2")
         keys: list[str] = []

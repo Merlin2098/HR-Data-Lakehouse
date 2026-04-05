@@ -56,6 +56,13 @@ data "aws_iam_policy_document" "glue_runtime" {
   }
 
   statement {
+    sid       = "CloudWatchMetrics"
+    effect    = "Allow"
+    actions   = ["cloudwatch:PutMetricData"]
+    resources = ["*"]
+  }
+
+  statement {
     sid    = "KmsLakehouseAccess"
     effect = "Allow"
     actions = [

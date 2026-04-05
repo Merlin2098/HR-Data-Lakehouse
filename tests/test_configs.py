@@ -314,3 +314,14 @@ def test_manual_retry_helper_starts_step_functions_execution_from_existing_landi
     assert '"source_filename": source_filename' in retry_helper
     assert '"bucket_name": bucket_name' in retry_helper
     assert '"object_key": object_key' in retry_helper
+
+
+def test_glue_runtime_supports_cloudwatch_metrics_and_s3_partition_validation() -> None:
+    iam_tf = Path(resolve_project_path("infra/modules/iam/main.tf")).read_text(encoding="utf-8")
+    runtime_py = Path(resolve_project_path("src/common/pipeline_runtime.py")).read_text(encoding="utf-8")
+    resource_loader = Path(resolve_project_path("src/common/resource_loader.py")).read_text(encoding="utf-8")
+
+    assert '"cloudwatch:PutMetricData"' in iam_tf
+    assert "treat_as_prefix=s3_partition_prefix" in runtime_py
+    assert "def resource_exists(value: str | Path, *, treat_as_prefix: bool = False)" in resource_loader
+    assert "def list_resource_objects(value: str | Path, *, treat_as_prefix: bool = False)" in resource_loader
