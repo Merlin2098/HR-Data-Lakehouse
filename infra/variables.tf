@@ -63,12 +63,6 @@ variable "scripts_bucket_reader_arns" {
   default     = []
 }
 
-variable "quicksight_principal_arns" {
-  description = "QuickSight IAM principal ARNs granted access to the curated gold dataset and Athena query-results prefix."
-  type        = list(string)
-  default     = []
-}
-
 variable "landing_prefix" {
   description = "S3 prefix monitored for landing file arrivals."
   type        = string

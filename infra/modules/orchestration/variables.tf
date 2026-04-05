@@ -28,6 +28,11 @@ variable "silver_to_gold_job_name" {
   type        = string
 }
 
+variable "gold_to_bi_export_job_name" {
+  description = "Gold-to-BI export Glue job name."
+  type        = string
+}
+
 variable "athena_workgroup_name" {
   description = "Athena workgroup name."
   type        = string

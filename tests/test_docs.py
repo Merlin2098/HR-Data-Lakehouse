@@ -14,7 +14,7 @@ def read_text(path: str) -> str:
 def test_pipeline_doc_reflects_trigger_only_landing_flow() -> None:
     pipeline_doc = read_text("docs/pipeline.md")
 
-    assert "Landing -> Silver -> Gold" in pipeline_doc
+    assert "Landing -> Silver -> Gold -> BI Export" in pipeline_doc
     assert "Physical copy to `raw`: removed from the current design" in pipeline_doc
     assert "Bronze -> raw ingestion" not in pipeline_doc
     assert "raw.csv" not in pipeline_doc
@@ -25,10 +25,11 @@ def test_pipeline_doc_reflects_trigger_only_landing_flow() -> None:
 def test_overview_doc_matches_current_pipeline_shape() -> None:
     overview_doc = read_text("docs/etl_architecture_overview.md")
 
-    assert "Landing -> Silver -> Gold" in overview_doc
+    assert "Landing -> Silver -> Gold -> BI Export" in overview_doc
     assert "landing_to_bronze" not in overview_doc
     assert "reads the CSV from the exact `landing` object" in overview_doc
     assert "event-driven ingestion from `landing`" in overview_doc
+    assert "gold_to_bi_export" in overview_doc
 
 
 def test_implementation_doc_describes_current_validation_status() -> None:
@@ -40,15 +41,15 @@ def test_implementation_doc_describes_current_validation_status() -> None:
     assert "IMPLEMENTED IN CODE, NOT VALIDATED IN AWS" not in implementation_doc
 
 
-def test_docs_describe_quicksight_direct_query_over_bi_view() -> None:
+def test_docs_describe_local_bi_snapshot_and_future_live_connectors() -> None:
     terraform_usage = read_text("docs/terraform_usage.md")
     overview_doc = read_text("docs/etl_architecture_overview.md")
 
-    assert "QuickSight in `direct query` mode over Athena" in terraform_usage
-    assert "`vw_quicksight_hr_attrition`" in terraform_usage
-    assert "not using the CSV files under `athena-results` as an analytical layer" in terraform_usage
-    assert "QuickSight should connect to the stable view `vw_quicksight_hr_attrition`" in overview_doc
-    assert "without a manual SPICE refresh" in overview_doc
+    assert "`bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`" in terraform_usage
+    assert "local BI consumption path" in terraform_usage
+    assert "QuickSight, Athena drivers, and other live BI connectors are documented as future features" in terraform_usage
+    assert "local BI snapshot export" in overview_doc
+    assert "Future features" in overview_doc
 
 
 def test_tinker_project_metadata_and_context_graph_reflect_repo_layout() -> None:

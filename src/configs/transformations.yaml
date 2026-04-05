@@ -6,7 +6,7 @@ defaults:
     local: duckdb
     aws: glue_spark
   runtime_variables:
-    source_filename: HR-Employee-Attrition.csv
+    source_filename: HR-Employee-Attrition2.csv
 
 pipelines:
   bronze_to_silver:
@@ -15,7 +15,7 @@ pipelines:
       layer: bronze
       dataset_name: landing_hr_employee_attrition
       format: csv
-      local_uri: data/HR-Employee-Attrition.csv
+      local_uri: data/HR-Employee-Attrition2.csv
       source_uri: s3://{data_lake_bucket}/bronze/hr_attrition/landing/
       view_name: bronze_hr_attrition
     target:
@@ -68,3 +68,30 @@ pipelines:
       contract_uri: s3://{scripts_bucket}/configs/contracts.yaml
       glue_script_path: src/glue/silver_to_gold.py
       glue_script_s3_key: glue/silver_to_gold.py
+  gold_to_bi_export:
+    description: Export the curated gold dataset into a single Parquet snapshot for local BI consumption.
+    source:
+      layer: gold
+      dataset_name: gold_hr_attrition_fact
+      format: parquet
+      local_uri: data/output/gold/hr_attrition
+      source_uri: s3://{data_lake_bucket}/gold/hr_attrition/
+      view_name: gold_hr_attrition_fact
+    target:
+      layer: bi
+      dataset_name: bi_hr_attrition_snapshot
+      format: parquet
+      layout: file
+      compression: snappy
+      local_uri: data/output/bi/hr_attrition_snapshot.parquet
+      target_uri: s3://{data_lake_bucket}/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet
+      write_mode: overwrite_full
+    artifacts:
+      config_path: src/configs/transformations.yaml
+      config_uri: s3://{scripts_bucket}/configs/transformations.yaml
+      query_path: src/queries/gold_to_bi_export.sql
+      query_uri: s3://{scripts_bucket}/queries/gold_to_bi_export.sql
+      contract_path: src/configs/contracts.yaml
+      contract_uri: s3://{scripts_bucket}/configs/contracts.yaml
+      glue_script_path: src/glue/gold_to_bi_export.py
+      glue_script_s3_key: glue/gold_to_bi_export.py

@@ -14,7 +14,7 @@ from src.common.contract_loader import column_definitions, dataset_contract, exp
 from src.common.project_paths import ensure_parent_dir, resolve_project_path
 from src.common.query_loader import load_sql_file
 from src.common.resource_loader import list_resource_objects, resolve_resource_reference, resource_exists
-from src.common.s3_utils import build_s3_uri, is_s3_uri
+from src.common.s3_utils import build_s3_uri, is_s3_uri, split_s3_uri
 
 
 TEMPLATE_PATTERN = re.compile(r"\{\{\s*(\w+)\s*\}\}")
@@ -536,12 +536,104 @@ def materialize_duckdb_partitioned_result(
 
 
 def materialize_spark_result(result_df, context: PipelineContext, *, partition_by: list[str]) -> str:  # pragma: no cover - exercised in AWS runtime
+    if context.target_layout == "file":
+        if partition_by:
+            raise ValueError("Single-file Spark materialization does not support partitioned outputs.")
+        return materialize_spark_single_file_result(result_df, context)
+
     writer = result_df.write.mode("overwrite").option("compression", context.output_compression)
     if partition_by:
         writer.partitionBy(*partition_by).parquet(context.target_uri)
     else:
         writer.parquet(context.target_uri)
     return context.target_uri
+
+
+def materialize_spark_single_file_result(result_df, context: PipelineContext) -> str:  # pragma: no cover - exercised in AWS runtime
+    staging_location = build_spark_staging_location(context.target_uri)
+    (
+        result_df.coalesce(1)
+        .write.mode("overwrite")
+        .option("compression", context.output_compression)
+        .parquet(staging_location)
+    )
+
+    if is_s3_uri(context.target_uri):
+        promote_spark_single_file_s3(staging_location, context.target_uri)
+        return context.target_uri
+
+    return promote_spark_single_file_local(staging_location, context.target_uri)
+
+
+def build_spark_staging_location(target_uri: str | Path) -> str:
+    stage_suffix = f"_spark_stage_{uuid.uuid4().hex[:8]}"
+    if is_s3_uri(str(target_uri)):
+        bucket, key = split_s3_uri(str(target_uri))
+        key_parts = key.rsplit("/", 1)
+        parent_prefix = key_parts[0] if len(key_parts) > 1 else ""
+        filename = key_parts[-1]
+        basename = filename.rsplit(".", 1)[0]
+        stage_key = f"{parent_prefix}/{basename}{stage_suffix}".strip("/")
+        return build_s3_uri(bucket, f"{stage_key}/")
+
+    target_path = resolve_project_path(target_uri)
+    return str(target_path.parent / f"{target_path.stem}{stage_suffix}")
+
+
+def promote_spark_single_file_local(staging_location: str, target_uri: str | Path) -> str:
+    staging_root = Path(resolve_project_path(staging_location))
+    target_file = ensure_parent_dir(target_uri)
+    parquet_files = sorted(staging_root.rglob("part-*.parquet"))
+    if not parquet_files:
+        raise FileNotFoundError(f"No Spark parquet part file was produced under {staging_root}.")
+
+    if target_file.exists():
+        target_file.unlink()
+
+    shutil.move(str(parquet_files[0]), str(target_file))
+    if staging_root.exists():
+        shutil.rmtree(staging_root)
+    return str(target_file)
+
+
+def promote_spark_single_file_s3(staging_location: str, target_uri: str) -> None:
+    client = spark_runtime_s3_client()
+    bucket, target_key = split_s3_uri(target_uri)
+    stage_bucket, _ = split_s3_uri(staging_location)
+    staged_objects = list_resource_objects(staging_location, treat_as_prefix=True)
+    staged_keys = [split_s3_uri(staged_object)[1] for staged_object in staged_objects]
+    parquet_keys = [
+        key for key in staged_keys if key.rsplit("/", 1)[-1].startswith("part-") and key.endswith(".parquet")
+    ]
+    if not parquet_keys:
+        raise FileNotFoundError(f"No Spark parquet part file was produced under {staging_location}.")
+
+    client.copy_object(
+        Bucket=bucket,
+        Key=target_key,
+        CopySource={"Bucket": stage_bucket, "Key": parquet_keys[0]},
+    )
+    delete_s3_objects(client, stage_bucket, staged_keys)
+
+
+def spark_runtime_s3_client():
+    try:
+        import boto3
+    except ImportError as exc:
+        raise RuntimeError("boto3 is required to materialize Spark single-file exports in S3.") from exc
+    return boto3.client("s3")
+
+
+def delete_s3_objects(client, bucket: str, keys: list[str]) -> None:
+    if not keys:
+        return
+
+    for index in range(0, len(keys), 1000):
+        batch = keys[index : index + 1000]
+        client.delete_objects(
+            Bucket=bucket,
+            Delete={"Objects": [{"Key": key} for key in batch]},
+        )
 
 
 def prepare_dataset_output_root(path_value: str | Path) -> Path:

@@ -8,10 +8,16 @@ output "silver_to_gold_job_name" {
   value       = aws_glue_job.silver_to_gold.name
 }
 
+output "gold_to_bi_export_job_name" {
+  description = "Glue job name for the gold-to-BI export."
+  value       = aws_glue_job.gold_to_bi_export.name
+}
+
 output "job_names" {
   description = "Ordered list of Glue job names."
   value = [
     aws_glue_job.bronze_to_silver.name,
     aws_glue_job.silver_to_gold.name,
+    aws_glue_job.gold_to_bi_export.name,
   ]
 }

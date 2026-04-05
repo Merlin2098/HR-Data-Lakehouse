@@ -54,32 +54,49 @@ Automatic AWS trigger:
 - Step Functions normalizes the payload and executes:
   - `bronze_to_silver`
   - `silver_to_gold`
+  - `gold_to_bi_export`
   - `validate_catalog`
 - each Glue task preserves `business_date`, `run_id`, and `source_filename` at the root payload and attaches its result in dedicated subfields
 - `bronze_to_silver` processes the exact landing object that triggered the event
 - the final Athena validation also depends on the Step Functions role having Athena permissions, read-only access to curated prefixes in `data_lake`, and write access to `athena-results`
 
-## QuickSight Integration
+## Local BI Snapshot
 
-The recommended low-cost integration is:
+The current local BI consumption path is:
 
-- QuickSight in `direct query` mode over Athena
-- using the Athena-facing view `vw_quicksight_hr_attrition`
-- not using the CSV files under `athena-results` as an analytical layer
+- export a single Parquet snapshot from `gold`
+- store it in `s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`
+- stable object key: `bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`
+- download that file locally and open it in the desktop visualization tool of your choice
 
 Terraform now prepares the technical side for that pattern:
 
-- a QuickSight-facing Athena view over `gold_hr_attrition_fact`
-- optional S3 bucket policies driven by `quicksight_principal_arns`
-- read-only access to `gold/*` in `data_lake`
-- read/write access to `query-results/*` in `athena-results`
+- a third Glue job, `gold_to_bi_export`
+- a stable S3 object for the BI snapshot
+- a visible `.keep` placeholder under `bi/hr_attrition_snapshot/`
+
+Useful output:
+
+```powershell
+terraform -chdir=infra output -raw bi_snapshot_s3_uri
+```
 
 Operational notes:
 
-- keep `quicksight_principal_arns = []` until you know the exact QuickSight principal ARN to authorize
-- when QuickSight uses `direct query`, new pipeline runs and reruns become visible automatically through Athena
-- no SPICE refresh is required in that mode
-- if you change the schema of the view, QuickSight dataset mappings may need manual adjustment
+- the export is a full overwrite snapshot, not a versioned history
+- the BI snapshot does not depend on Athena query-result CSVs
+- the BI snapshot is produced automatically after `silver_to_gold`
+- new pipeline runs and reruns replace the same stable Parquet object
+
+## Future Features
+
+QuickSight, Athena drivers, and other live BI connectors are documented as future features:
+
+- QuickSight direct query over Athena
+- Power BI or Tableau through Athena ODBC/JDBC drivers
+- other live-query BI integrations that read the curated `gold` layer through Athena
+
+Those integrations are intentionally not part of the active runtime path in this iteration.
 
 Manual retry without re-upload:
 
@@ -97,7 +114,7 @@ $env:AWS_PROFILE="admin2"
 $stateMachineArn = terraform -chdir=infra output -raw state_machine_arn
 .\.venv\Scripts\python.exe src\glue\retry_state_machine.py `
   --state-machine-arn $stateMachineArn `
-  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition.csv" `
+  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition2.csv" `
   --business-date 2026-04-04
 ```
 

@@ -1,6 +1,6 @@
 # HR Data Lakehouse
 
-This repository now contains a local bronze-to-silver-to-gold pipeline plus an AWS-oriented infrastructure definition for a production-style HR attrition lakehouse MVP.
+This repository now contains a local bronze-to-silver-to-gold pipeline plus a BI snapshot export and an AWS-oriented infrastructure definition for a production-style HR attrition lakehouse MVP.
 
 Current status:
 
@@ -13,7 +13,7 @@ The current scope now covers:
 - Terraform infrastructure in `infra/`
 - A shared `data_lake` S3 bucket with `bronze/`, `silver/`, and `gold/` prefixes, plus separate `scripts` and `athena-results` buckets
 - KMS-backed encryption and hardened bucket defaults
-- Glue jobs for `landing -> silver` and `silver -> gold`
+- Glue jobs for `landing -> silver`, `silver -> gold`, and `gold -> bi_export`
 - Step Functions orchestration triggered by `S3 Object Created` events through EventBridge
 - Glue Catalog + Athena workgroup for analytics
 - CloudWatch/SNS observability scaffolding
@@ -48,9 +48,10 @@ The local pipeline uses:
 - `src/queries/silver_to_gold.sql` for enrichment and partition-ready analytics
 - `src/glue/bronze_to_silver.py` for the silver stage
 - `src/glue/silver_to_gold.py` for the gold stage
+- `src/glue/gold_to_bi_export.py` for the BI snapshot stage
 - `src/glue/run_local_pipeline.py` for the full end-to-end local run
 
-By default, the local pipeline reads `data/HR-Employee-Attrition.csv`, writes silver as a parquet dataset under `data/output/silver/hr_employees/`, and writes gold as a partitioned parquet dataset under `data/output/gold/hr_attrition/` using Hive-style folders such as `.../year=2026/month=4/day=3/`.
+By default, the local pipeline reads `data/HR-Employee-Attrition2.csv`, writes silver as a parquet dataset under `data/output/silver/hr_employees/`, writes gold as a partitioned parquet dataset under `data/output/gold/hr_attrition/` using Hive-style folders such as `.../year=2026/month=4/day=3/`, and exports a stable BI snapshot to `data/output/bi/hr_attrition_snapshot.parquet`.
 Gold uses a daily partition overwrite model, so each run refreshes only the partition for that processing day instead of rewriting the full dataset.
 
 Both silver and gold now include technical metadata to simulate production-style lineage:
@@ -111,7 +112,7 @@ The Terraform configuration under `infra/` now models an AWS production-style MV
 
 Glue assets are uploaded to S3 through Terraform, and the state machine orchestrates the medallion flow when a new CSV lands in the `bronze/` landing prefix inside the shared data lake bucket:
 
-`bronze_to_silver -> silver_to_gold -> validate_catalog`
+`bronze_to_silver -> silver_to_gold -> gold_to_bi_export -> validate_catalog`
 
 Automatic trigger in AWS:
 
@@ -126,12 +127,18 @@ $env:AWS_PROFILE="admin2"
 $stateMachineArn = terraform -chdir=infra output -raw state_machine_arn
 .\.venv\Scripts\python.exe src\glue\retry_state_machine.py `
   --state-machine-arn $stateMachineArn `
-  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition.csv" `
+  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition2.csv" `
   --business-date 2026-04-04
 ```
 
 The retry helper does not upload files. It only starts a new Step Functions execution for an object that already exists in S3, and it derives `source_filename` from the final key segment automatically.
 In AWS, `landing` now acts only as the drop zone and event trigger; there is no physical promotion copy into `raw` before `bronze_to_silver`.
+
+The current recommended BI consumption path is to download the exported Parquet snapshot from:
+
+`s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`
+
+and open it locally in the desktop visualization tool of your choice. Live Athena-driven connectors such as QuickSight, Power BI ODBC, or Tableau live queries are treated as future features rather than part of the active runtime path.
 
 Terraform local usage is documented in [terraform_usage.md](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/docs/terraform_usage.md).
 

@@ -13,6 +13,11 @@ variable "silver_to_gold_job_name" {
   type        = string
 }
 
+variable "gold_to_bi_export_job_name" {
+  description = "Glue ETL job name for gold to BI export."
+  type        = string
+}
+
 variable "role_arn" {
   description = "ARN of the Glue execution role."
   type        = string
@@ -48,6 +53,11 @@ variable "silver_to_gold_script_key" {
   type        = string
 }
 
+variable "gold_to_bi_export_script_key" {
+  description = "S3 key for the gold-to-BI export script."
+  type        = string
+}
+
 variable "bronze_to_silver_query_key" {
   description = "S3 key for the bronze-to-silver SQL query."
   type        = string
@@ -55,6 +65,11 @@ variable "bronze_to_silver_query_key" {
 
 variable "silver_to_gold_query_key" {
   description = "S3 key for the silver-to-gold SQL query."
+  type        = string
+}
+
+variable "gold_to_bi_export_query_key" {
+  description = "S3 key for the gold-to-BI export SQL query."
   type        = string
 }
 
@@ -70,6 +85,11 @@ variable "bronze_to_silver_log_group_name" {
 
 variable "silver_to_gold_log_group_name" {
   description = "CloudWatch log group name for the silver-to-gold job."
+  type        = string
+}
+
+variable "gold_to_bi_export_log_group_name" {
+  description = "CloudWatch log group name for the gold-to-BI export job."
   type        = string
 }
 

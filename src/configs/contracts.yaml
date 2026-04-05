@@ -184,3 +184,115 @@ datasets:
       - name: processed_at_utc
         type: timestamp
         nullable: false
+
+  bi_hr_attrition_snapshot:
+    description: Single-file Parquet snapshot exported from gold for local BI tooling.
+    primary_key:
+      - employee_id
+    columns:
+      - name: employee_id
+        type: integer
+        nullable: false
+      - name: ingestion_date
+        type: date
+        nullable: false
+      - name: year
+        type: integer
+        nullable: false
+      - name: month
+        type: integer
+        nullable: false
+      - name: day
+        type: integer
+        nullable: false
+      - name: department
+        type: string
+        nullable: false
+      - name: job_role
+        type: string
+        nullable: false
+      - name: job_level
+        type: integer
+        nullable: false
+      - name: attrition
+        type: boolean
+        nullable: false
+      - name: monthly_income
+        type: decimal(12,2)
+        nullable: false
+      - name: percent_salary_hike
+        type: integer
+        nullable: false
+      - name: years_at_company
+        type: integer
+        nullable: false
+      - name: years_since_last_promotion
+        type: integer
+        nullable: false
+      - name: total_working_years
+        type: integer
+        nullable: false
+      - name: over_time
+        type: boolean
+        nullable: false
+      - name: job_satisfaction_score
+        type: integer
+        nullable: false
+        min_value: 1
+        max_value: 4
+      - name: environment_satisfaction_score
+        type: integer
+        nullable: false
+        min_value: 1
+        max_value: 4
+      - name: relationship_satisfaction_score
+        type: integer
+        nullable: false
+        min_value: 1
+        max_value: 4
+      - name: work_life_balance_score
+        type: integer
+        nullable: false
+        min_value: 1
+        max_value: 4
+      - name: job_satisfaction_label
+        type: string
+        nullable: false
+        allowed_values:
+          - low
+          - medium
+          - high
+          - very_high
+      - name: environment_satisfaction_label
+        type: string
+        nullable: false
+        allowed_values:
+          - low
+          - medium
+          - high
+          - very_high
+      - name: relationship_satisfaction_label
+        type: string
+        nullable: false
+        allowed_values:
+          - low
+          - medium
+          - high
+          - very_high
+      - name: work_life_balance_label
+        type: string
+        nullable: false
+        allowed_values:
+          - low
+          - medium
+          - high
+          - very_high
+      - name: source_file
+        type: string
+        nullable: false
+      - name: run_id
+        type: string
+        nullable: false
+      - name: processed_at_utc
+        type: timestamp
+        nullable: false

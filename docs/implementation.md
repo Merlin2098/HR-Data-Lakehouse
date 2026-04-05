@@ -6,7 +6,7 @@
 
 Build a serverless AWS lakehouse for HR attrition analytics using:
 
-- Medallion Architecture (`landing -> silver -> gold`)
+- Medallion Architecture (`landing -> silver -> gold`) plus a stable BI snapshot export
 - Config-driven pipelines (`YAML + SQL + Python`)
 - Terraform as the source of truth for infrastructure and asset deployment
 - A local execution mode for development plus an AWS-oriented execution mode for Glue
@@ -23,6 +23,7 @@ Current repo status:
 - AWS-oriented runtime path implemented in code
 - Terraform expanded from phase-1 minimal infra to an AWS-style MVP definition
 - The main AWS execution path has been validated functionally
+- A local BI snapshot export path is now modeled after `gold`
 - CI/CD automation, remote backend, and stronger deployment ergonomics are still partial
 
 This means the repository has moved beyond implementation-only design: the main AWS path works, but operational maturity is still incomplete.
@@ -39,6 +40,7 @@ Completed in the repository:
 - Business logic externalized into YAML, SQL, and Python
 - Local execution works with DuckDB
 - Silver and gold are materialized as Parquet datasets
+- A single-file BI snapshot can be materialized locally from gold
 - Data contracts and runtime validation exist
 
 Validation status:
@@ -90,6 +92,7 @@ Completed in code and functionally exercised:
 - Runtime supports `engine: duckdb | glue_spark`
 - Glue-oriented scripts accept AWS-style runtime arguments
 - `bronze_to_silver` and `silver_to_gold` jobs are modeled and executed through Step Functions
+- `gold_to_bi_export` is the next stage after `silver_to_gold`
 - Landing acts as the event-driven ingress object for `bronze_to_silver`
 - The main `landing -> silver -> gold` execution path has already run in AWS
 
@@ -120,6 +123,7 @@ Validated / exercised scope:
 - state machine execution
 - event-driven trigger path from landing
 - Glue outputs in silver and gold
+- BI export path modeled in code and Terraform
 
 Still partial:
 
@@ -152,6 +156,7 @@ Both statements are true and should be used carefully depending on whether we ar
 Implemented locally and in code:
 
 - `landing -> silver -> gold` medallion flow
+- local BI snapshot export from `gold`
 - Silver and gold contracts with technical metadata
 - Gold partitioning in Hive-style format
 - Contract-driven runtime quality checks

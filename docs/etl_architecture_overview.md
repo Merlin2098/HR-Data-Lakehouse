@@ -15,7 +15,7 @@ The goal is to clearly separate:
 The project follows a `medallion` architecture with the current flow:
 
 ```text
-Landing -> Silver -> Gold
+Landing -> Silver -> Gold -> BI Export
 ```
 
 In execution terms, the system operates in two modes:
@@ -35,7 +35,7 @@ Business logic does not live hardcoded in Python. It is split across:
 
 This is the arrival zone for the source file and the pipeline trigger point in AWS.
 
-- Locally, the base dataset is [HR-Employee-Attrition.csv](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/data/HR-Employee-Attrition.csv)
+- Locally, the base dataset is [HR-Employee-Attrition2.csv](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/data/HR-Employee-Attrition2.csv)
 - In AWS, the file lands in the shared data lake bucket under the prefix `bronze/hr_attrition/landing/`
 - The pipeline trigger is based on the creation of a CSV object in that prefix
 
@@ -115,6 +115,39 @@ Write policy:
 
 That means silver is rebuilt fully on each run, while gold only replaces the processed-day partition.
 
+### 5. BI Export
+
+The project now adds a local BI snapshot export after gold.
+
+The `gold_to_bi_export` job:
+
+- reads the curated `gold` Parquet dataset
+- preserves the current analytical schema as-is
+- writes a single stable Parquet file for local desktop BI tools
+
+Logical dataset:
+
+- `bi_hr_attrition_snapshot`
+
+Current AWS path:
+
+```text
+s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet
+```
+
+Current local path:
+
+```text
+data/output/bi/hr_attrition_snapshot.parquet
+```
+
+Output behavior:
+
+- format: Parquet
+- layout: single file
+- write mode: full overwrite snapshot
+- intended consumption: local/manual
+
 ## Files That Govern the Pipeline
 
 The main ETL artifacts live under `src/`:
@@ -123,9 +156,11 @@ The main ETL artifacts live under `src/`:
 - [contracts.yaml](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/configs/contracts.yaml): defines silver and gold contracts, minimum quality rules, and operational metadata
 - [bronze_to_silver.sql](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/queries/bronze_to_silver.sql): cleaning and typing
 - [silver_to_gold.sql](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/queries/silver_to_gold.sql): analytical enrichment
+- [gold_to_bi_export.sql](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/queries/gold_to_bi_export.sql): BI snapshot projection
 - [pipeline_runtime.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/common/pipeline_runtime.py): shared runtime for local and AWS execution
 - [bronze_to_silver.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/bronze_to_silver.py): curated transformation
 - [silver_to_gold.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/silver_to_gold.py): analytical transformation
+- [gold_to_bi_export.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/gold_to_bi_export.py): single-file BI snapshot export
 - [retry_state_machine.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/retry_state_machine.py): manual retry helper for Step Functions
 
 ## Local Execution
@@ -144,6 +179,7 @@ Local flow:
 1. reads the CSV from `data/`
 2. generates silver as a local Parquet dataset
 3. generates gold as a partitioned local Parquet dataset
+4. generates a single-file BI snapshot in local Parquet
 
 This mode allows logic, contracts, and outputs to be validated without depending on AWS.
 
@@ -167,6 +203,7 @@ Current flow:
 5. Step Functions executes:
    - `bronze_to_silver`
    - `silver_to_gold`
+   - `gold_to_bi_export`
    - `validate_catalog`
 
 ### AWS Services Around the ETL
@@ -199,6 +236,7 @@ Modeled jobs:
 
 - `bronze_to_silver`
 - `silver_to_gold`
+- `gold_to_bi_export`
 
 Responsibilities:
 
@@ -245,11 +283,11 @@ Responsibilities:
 - query silver and gold
 - execute a final validation step at the end of the state machine
 
-QuickSight consumption pattern:
+Local BI snapshot export:
 
-- the recommended BI integration is QuickSight in `direct query` mode over Athena
-- QuickSight should connect to the stable view `vw_quicksight_hr_attrition`
-- because `gold` is partitioned and exposed through partition projection, new runs and reruns become visible without a manual SPICE refresh
+- the active BI delivery path is the local BI snapshot export
+- Athena remains in the runtime only for `validate_catalog`
+- live connectors over Athena are intentionally deferred
 
 #### CloudWatch and SNS
 
@@ -299,6 +337,17 @@ This project implements a `config-driven` ETL with:
 - event triggering with EventBridge
 - cataloging with Glue Catalog
 - final validation with Athena
+- local BI snapshot export in Parquet
+
+## Future features
+
+Potential future BI integrations include:
+
+- QuickSight in direct query mode over Athena
+- Power BI through the Athena driver
+- Tableau or similar desktop tools through live Athena connectivity
+
+Those remain optional future features and are not part of the active runtime path today.
 
 Note about `.tinker`:
 

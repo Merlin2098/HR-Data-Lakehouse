@@ -14,6 +14,7 @@ locals {
 
   bronze_to_silver_job_name  = "${var.name_prefix}-${var.environment}-bronze-to-silver"
   silver_to_gold_job_name    = "${var.name_prefix}-${var.environment}-silver-to-gold"
+  gold_to_bi_export_job_name = "${var.name_prefix}-${var.environment}-gold-to-bi-export"
 
   step_function_name = "${var.name_prefix}-${var.environment}-event-medallion"
   event_rule_name    = "${var.name_prefix}-${var.environment}-landing-created"
@@ -21,6 +22,7 @@ locals {
 
   bronze_to_silver_log_group = "/aws/glue/${local.bronze_to_silver_job_name}"
   silver_to_gold_log_group   = "/aws/glue/${local.silver_to_gold_job_name}"
+  gold_to_bi_export_log_group = "/aws/glue/${local.gold_to_bi_export_job_name}"
   step_functions_log_group   = "/aws/vendedlogs/states/${local.step_function_name}"
 }
 
@@ -42,7 +44,6 @@ module "s3" {
     ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"],
     var.scripts_bucket_reader_arns,
   )
-  quicksight_principal_arns = var.quicksight_principal_arns
   common_tags = local.resource_tags
 }
 
@@ -71,6 +72,7 @@ module "glue" {
   environment                     = var.environment
   bronze_to_silver_job_name       = local.bronze_to_silver_job_name
   silver_to_gold_job_name         = local.silver_to_gold_job_name
+  gold_to_bi_export_job_name      = local.gold_to_bi_export_job_name
   role_arn                        = module.iam.glue_role_arn
   script_bucket                   = module.s3.scripts_bucket_name
   data_lake_bucket                = module.s3.data_lake_bucket_name
@@ -78,11 +80,14 @@ module "glue" {
   contract_key                    = module.assets.contract_key
   bronze_to_silver_script_key     = module.assets.bronze_to_silver_script_key
   silver_to_gold_script_key       = module.assets.silver_to_gold_script_key
+  gold_to_bi_export_script_key    = module.assets.gold_to_bi_export_script_key
   bronze_to_silver_query_key      = module.assets.bronze_to_silver_query_key
   silver_to_gold_query_key        = module.assets.silver_to_gold_query_key
+  gold_to_bi_export_query_key     = module.assets.gold_to_bi_export_query_key
   glue_runtime_package_key        = module.assets.glue_runtime_package_key
   bronze_to_silver_log_group_name = local.bronze_to_silver_log_group
   silver_to_gold_log_group_name   = local.silver_to_gold_log_group
+  gold_to_bi_export_log_group_name = local.gold_to_bi_export_log_group
   kms_key_arn                     = module.kms.kms_key_arn
   common_tags                     = local.resource_tags
 }
@@ -111,6 +116,7 @@ module "orchestration" {
   step_functions_role_arn       = module.iam.step_functions_role_arn
   bronze_to_silver_job_name     = module.glue.bronze_to_silver_job_name
   silver_to_gold_job_name       = module.glue.silver_to_gold_job_name
+  gold_to_bi_export_job_name    = module.glue.gold_to_bi_export_job_name
   athena_workgroup_name         = module.athena.workgroup_name
   athena_database_name          = module.catalog.database_name
   gold_table_name               = module.catalog.gold_table_name

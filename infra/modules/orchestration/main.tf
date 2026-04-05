@@ -97,6 +97,19 @@ locals {
           }
         }
         ResultPath = "$.silver_to_gold_result"
+        Next       = "GoldToBiExport"
+      }
+      GoldToBiExport = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::glue:startJobRun.sync"
+        Parameters = {
+          JobName = var.gold_to_bi_export_job_name
+          Arguments = {
+            "--business-date.$" = "$.business_date"
+            "--run-id.$"        = "$.run_id"
+          }
+        }
+        ResultPath = "$.gold_to_bi_export_result"
         Next       = "ValidateCatalog"
       }
       ValidateCatalog = {

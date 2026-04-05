@@ -33,14 +33,14 @@ output "athena_workgroup_name" {
   value       = module.athena.workgroup_name
 }
 
-output "quicksight_view_name" {
-  description = "Athena view intended for QuickSight direct-query datasets."
-  value       = module.catalog.quicksight_view_name
-}
-
 output "catalog_database_name" {
   description = "Glue Catalog database name."
   value       = module.catalog.database_name
+}
+
+output "bi_snapshot_s3_uri" {
+  description = "Stable S3 URI for the exported local BI snapshot parquet file."
+  value       = "s3://${module.s3.data_lake_bucket_name}/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet"
 }
 
 output "state_machine_arn" {

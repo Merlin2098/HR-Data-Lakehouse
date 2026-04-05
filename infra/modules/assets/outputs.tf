@@ -8,6 +8,11 @@ output "silver_to_gold_script_key" {
   value       = aws_s3_object.assets["silver_to_gold_script"].key
 }
 
+output "gold_to_bi_export_script_key" {
+  description = "S3 key for the gold-to-BI export Glue script."
+  value       = aws_s3_object.assets["gold_to_bi_export_script"].key
+}
+
 output "config_key" {
   description = "S3 key for the pipeline configuration file."
   value       = aws_s3_object.assets["transformations"].key
@@ -26,6 +31,11 @@ output "bronze_to_silver_query_key" {
 output "silver_to_gold_query_key" {
   description = "S3 key for the silver-to-gold SQL query."
   value       = aws_s3_object.assets["silver_to_gold_query"].key
+}
+
+output "gold_to_bi_export_query_key" {
+  description = "S3 key for the gold-to-BI export SQL query."
+  value       = aws_s3_object.assets["gold_to_bi_export_query"].key
 }
 
 output "glue_runtime_package_key" {

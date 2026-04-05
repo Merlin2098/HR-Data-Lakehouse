@@ -7,7 +7,7 @@ This document summarizes the current pipeline design for the HR attrition lakeho
 The active medallion flow is:
 
 ```text
-Landing -> Silver -> Gold
+Landing -> Silver -> Gold -> BI Export
 ```
 
 In AWS, `landing` is the bronze ingress zone and trigger path. There is no longer a separate `raw` promotion stage.
@@ -31,6 +31,12 @@ silver_to_gold
         |
         v
 gold/hr_attrition/year=YYYY/month=M/day=D/ (Parquet)
+        |
+        v
+gold_to_bi_export
+        |
+        v
+bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet
         |
         v
 validate_catalog
@@ -129,6 +135,24 @@ Output characteristics:
 - Layout: partitioned dataset
 - Write mode: overwrite current partition only
 
+## BI Export
+
+Purpose:
+
+- Produce a stable single-file Parquet snapshot for local BI tools.
+- Avoid dependence on live Athena drivers or licensed BI services in the core project path.
+
+Current dataset:
+
+- Logical name: `bi_hr_attrition_snapshot`
+- Physical path: `s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`
+
+Output characteristics:
+
+- Format: Parquet
+- Layout: single file
+- Write mode: full overwrite snapshot
+
 ## Runtime Model
 
 The project supports two execution modes from the same configuration:
@@ -142,6 +166,7 @@ The business logic is externalized into:
 - `src/configs/contracts.yaml`
 - `src/queries/bronze_to_silver.sql`
 - `src/queries/silver_to_gold.sql`
+- `src/queries/gold_to_bi_export.sql`
 
 Python is responsible for runtime orchestration, validation, and materialization.
 
@@ -150,7 +175,7 @@ Python is responsible for runtime orchestration, validation, and materialization
 Current operational status:
 
 - local pipeline: validated
-- AWS pipeline: validated functionally for the main `landing -> silver -> gold` path
+- AWS pipeline: validated functionally for the main `landing -> silver -> gold` path and ready to extend with a BI export stage
 - CI/CD and fully automated deploy flow: still partial
 - remote Terraform backend and production-grade deployment automation: still pending
 

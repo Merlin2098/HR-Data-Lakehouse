@@ -34,3 +34,18 @@ def test_silver_to_gold_query_targets_expected_view_and_enrichment() -> None:
     assert "very_high" in sql_text
     assert "AS STRING" in sql_text
     assert "VARCHAR" not in sql_text
+
+
+def test_gold_to_bi_export_query_selects_stable_gold_snapshot_shape() -> None:
+    sql_text = load_sql_file(resolve_project_path("src/queries/gold_to_bi_export.sql"))
+
+    assert "FROM gold_hr_attrition_fact" in sql_text
+    assert "employee_id" in sql_text
+    assert "ingestion_date" in sql_text
+    assert "year" in sql_text
+    assert "month" in sql_text
+    assert "day" in sql_text
+    assert "source_file" in sql_text
+    assert "run_id" in sql_text
+    assert "processed_at_utc" in sql_text
+    assert "{{" not in sql_text

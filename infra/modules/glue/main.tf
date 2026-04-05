@@ -3,13 +3,16 @@ locals {
   contract_uri            = "s3://${var.script_bucket}/${var.contract_key}"
   bronze_script_location  = "s3://${var.script_bucket}/${var.bronze_to_silver_script_key}"
   gold_script_location    = "s3://${var.script_bucket}/${var.silver_to_gold_script_key}"
+  bi_export_script_location = "s3://${var.script_bucket}/${var.gold_to_bi_export_script_key}"
   bronze_query_uri        = "s3://${var.script_bucket}/${var.bronze_to_silver_query_key}"
   gold_query_uri          = "s3://${var.script_bucket}/${var.silver_to_gold_query_key}"
+  bi_export_query_uri     = "s3://${var.script_bucket}/${var.gold_to_bi_export_query_key}"
   glue_runtime_package_uri = "s3://${var.script_bucket}/${var.glue_runtime_package_key}"
 
   landing_root_uri    = "s3://${var.data_lake_bucket}/bronze/hr_attrition/landing/"
   silver_dataset_uri  = "s3://${var.data_lake_bucket}/silver/hr_employees/"
   gold_dataset_uri    = "s3://${var.data_lake_bucket}/gold/hr_attrition/"
+  bi_export_uri       = "s3://${var.data_lake_bucket}/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet"
 
   temp_dir_prefix = "glue-temp"
 }
@@ -23,6 +26,13 @@ resource "aws_cloudwatch_log_group" "bronze_to_silver" {
 
 resource "aws_cloudwatch_log_group" "silver_to_gold" {
   name              = var.silver_to_gold_log_group_name
+  retention_in_days = 30
+  kms_key_id        = var.kms_key_arn
+  tags              = var.common_tags
+}
+
+resource "aws_cloudwatch_log_group" "gold_to_bi_export" {
+  name              = var.gold_to_bi_export_log_group_name
   retention_in_days = 30
   kms_key_id        = var.kms_key_arn
   tags              = var.common_tags
@@ -100,6 +110,44 @@ resource "aws_glue_job" "silver_to_gold" {
     "--engine"                           = "glue_spark"
     "--enable-continuous-cloudwatch-log" = "true"
     "--continuous-log-logGroup"          = aws_cloudwatch_log_group.silver_to_gold.name
+    "--enable-metrics"                   = "true"
+  }
+}
+
+resource "aws_glue_job" "gold_to_bi_export" {
+  name     = var.gold_to_bi_export_job_name
+  role_arn = var.role_arn
+
+  command {
+    name            = "glueetl"
+    python_version  = "3"
+    script_location = local.bi_export_script_location
+  }
+
+  glue_version      = "4.0"
+  worker_type       = "G.1X"
+  number_of_workers = 2
+  timeout           = 15
+  max_retries       = 0
+  tags              = var.common_tags
+
+  execution_property {
+    max_concurrent_runs = 1
+  }
+
+  default_arguments = {
+    "--job-language"                     = "python"
+    "--TempDir"                          = "s3://${var.script_bucket}/${local.temp_dir_prefix}/${var.gold_to_bi_export_job_name}/"
+    "--extra-py-files"                   = local.glue_runtime_package_uri
+    "--config-uri"                       = local.config_uri
+    "--contracts-uri"                    = local.contract_uri
+    "--query-uri"                        = local.bi_export_query_uri
+    "--source-uri"                       = local.gold_dataset_uri
+    "--target-uri"                       = local.bi_export_uri
+    "--execution-mode"                   = "aws"
+    "--engine"                           = "glue_spark"
+    "--enable-continuous-cloudwatch-log" = "true"
+    "--continuous-log-logGroup"          = aws_cloudwatch_log_group.gold_to_bi_export.name
     "--enable-metrics"                   = "true"
   }
 }

@@ -29,12 +29,6 @@ variable "scripts_bucket_reader_arns" {
   default     = []
 }
 
-variable "quicksight_principal_arns" {
-  description = "IAM principal ARNs allowed to query curated gold data and Athena results from QuickSight."
-  type        = list(string)
-  default     = []
-}
-
 variable "common_tags" {
   description = "Tags applied to every bucket."
   type        = map(string)

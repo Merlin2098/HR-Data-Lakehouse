@@ -20,6 +20,10 @@ locals {
       key    = "glue/silver_to_gold.py"
       source = "${path.module}/../../../src/glue/silver_to_gold.py"
     }
+    gold_to_bi_export_script = {
+      key    = "glue/gold_to_bi_export.py"
+      source = "${path.module}/../../../src/glue/gold_to_bi_export.py"
+    }
     transformations = {
       key    = "configs/transformations.yaml"
       source = "${path.module}/../../../src/configs/transformations.yaml"
@@ -35,6 +39,10 @@ locals {
     silver_to_gold_query = {
       key    = "queries/silver_to_gold.sql"
       source = "${path.module}/../../../src/queries/silver_to_gold.sql"
+    }
+    gold_to_bi_export_query = {
+      key    = "queries/gold_to_bi_export.sql"
+      source = "${path.module}/../../../src/queries/gold_to_bi_export.sql"
     }
   }
 }
