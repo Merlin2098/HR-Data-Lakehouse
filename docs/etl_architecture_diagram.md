@@ -1,10 +1,10 @@
 # ETL Architecture Diagram
 
-## Objetivo
+## Objective
 
-Este documento muestra el diagrama de la arquitectura actual del ETL, tanto en su flujo funcional como en los servicios AWS que lo soportan alrededor.
+This document shows the current ETL architecture diagram, both as a functional flow and as the surrounding AWS services that support it.
 
-## 1. Flujo general del ETL
+## 1. General ETL Flow
 
 ```mermaid
 flowchart LR
@@ -15,7 +15,7 @@ flowchart LR
     E --> F["Glue Catalog / Athena"]
 ```
 
-## 2. Arquitectura AWS actual
+## 2. Current AWS Architecture
 
 ```mermaid
 flowchart TB
@@ -56,19 +56,19 @@ flowchart TB
     IAM --> J2
 ```
 
-## 3. Detalle de las layers
+## 3. Layer Detail
 
 ```mermaid
 flowchart LR
-    L["Landing<br/>Archivo recibido y trigger"] --> SI["Silver<br/>Curado y tipado"]
-    SI --> GO["Gold<br/>Analitico y particionado"]
+    L["Landing<br/>File arrival and trigger"] --> SI["Silver<br/>Curated and typed"]
+    SI --> GO["Gold<br/>Analytical and partitioned"]
 ```
 
-- `Landing`: punto de entrada del archivo CSV y trigger del pipeline.
-- `Silver`: limpia, tipa y normaliza la data.
-- `Gold`: enriquece la data y la publica para analitica.
+- `Landing`: entry point for the CSV file and pipeline trigger.
+- `Silver`: cleans, types, and normalizes the data.
+- `Gold`: enriches the data and publishes it for analytics.
 
-## 4. Diagrama de ejecucion local
+## 4. Local Execution Diagram
 
 ```mermaid
 flowchart LR
@@ -79,7 +79,7 @@ flowchart LR
     S2G --> GOL["data/output/gold/hr_attrition/"]
 ```
 
-## 5. Diagrama de assets y logica
+## 5. Assets and Logic Diagram
 
 ```mermaid
 flowchart TB
@@ -91,20 +91,20 @@ flowchart TB
     RT --> E2["silver_to_gold.py"]
 ```
 
-Esto refleja la separacion de responsabilidades del proyecto:
+This reflects the separation of responsibilities in the project:
 
-- `YAML`: configuracion del pipeline
-- `SQL`: logica de transformacion
-- `Python`: ejecucion, validacion y materializacion
+- `YAML`: pipeline configuration
+- `SQL`: transformation logic
+- `Python`: execution, validation, and materialization
 
-## 6. Resumen
+## 6. Summary
 
-La arquitectura actual del ETL combina:
+The current ETL architecture combines:
 
-- un flujo `medallion` claro
-- ejecucion local con `DuckDB`
-- ejecucion AWS modelada con `S3 + EventBridge + Step Functions + Glue`
-- consumo analitico con `Glue Catalog + Athena`
-- seguridad y observabilidad con `IAM + KMS + CloudWatch + SNS`
+- a clear `medallion` flow
+- local execution with `DuckDB`
+- AWS execution modeled with `S3 + EventBridge + Step Functions + Glue`
+- analytical consumption with `Glue Catalog + Athena`
+- security and observability with `IAM + KMS + CloudWatch + SNS`
 
-El diagrama representa la arquitectura objetivo actualmente implementada en codigo e IaC, aunque la validacion real en AWS sigue pendiente.
+The diagram represents the target architecture currently implemented in code and IaC. The main AWS path has already been validated functionally, while deployment automation and broader operational hardening are still evolving.

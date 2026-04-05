@@ -1,324 +1,160 @@
-# 🧠 Data Pipeline Design — HR Attrition Lakehouse
+# HR Attrition Pipeline
 
----
+## Objective
 
-# 🎯 Objective
+This document summarizes the current pipeline design for the HR attrition lakehouse and reflects the repository as it exists today.
 
-Design a **config-driven, cloud-native data pipeline** using Medallion Architecture:
-
-* Bronze → raw ingestion
-* Silver → cleaned and structured data
-* Gold → enriched analytical dataset
-
----
-
-# 🧱 1. High-Level Flow
+The active medallion flow is:
 
 ```text
-CSV (raw, all columns as string)
-        ↓
-[S3 - Bronze]
-        ↓
-Glue ETL
-        ↓
-Cast + cleaning + normalization
-        ↓
-Parquet
-        ↓
-[S3 - Silver]
-        ↓
-Glue ETL (enrichment)
-        ↓
-Business logic + feature engineering
-        ↓
-Parquet (partitioned)
-        ↓
-[S3 - Gold]
+Landing -> Silver -> Gold
 ```
 
-📌 Basado en flujo definido en el PDF (página 1)
+In AWS, `landing` is the bronze ingress zone and trigger path. There is no longer a separate `raw` promotion stage.
 
----
-
-# 🥉 2. Bronze Layer (Raw)
-
-## 🎯 Purpose
-
-Store raw data exactly as received.
-
----
-
-## Characteristics
-
-* Format: CSV
-* Schema: ❌ Not enforced (all string)
-* Transformations: ❌ None
-
----
-
-## Example
+## High-Level Flow
 
 ```text
-s3://<bucket>/bronze/hr_attrition/raw.csv
+CSV uploaded to landing
+        |
+        v
+S3 Object Created -> EventBridge -> Step Functions
+        |
+        v
+bronze_to_silver
+        |
+        v
+silver/hr_employees/ (Parquet)
+        |
+        v
+silver_to_gold
+        |
+        v
+gold/hr_attrition/year=YYYY/month=M/day=D/ (Parquet)
+        |
+        v
+validate_catalog
 ```
 
----
+## Landing / Bronze
 
-## Key Principle
+Purpose:
 
-> Bronze = source of truth (immutable)
+- Receive the source CSV file.
+- Trigger the state machine in AWS.
+- Act as the exact source object for `bronze_to_silver`.
 
----
-
-# 🥈 3. Silver Layer (Cleaned & Structured)
-
-## 🎯 Purpose
-
-Standardize, clean, and type data.
-
----
-
-## Transformations
-
-From PDF (página 1):
-
-* Cast types
-* Normalize strings (lowercase, trim)
-* Convert booleans:
-  * Yes → true
-  * No → false
-* Drop unnecessary columns
-
----
-
-## Data Model
-
-### Table: `silver_hr_employees`
-
-| Column                     | Type          | Description          |
-| -------------------------- | ------------- | -------------------- |
-| employee_number            | integer       | Primary key          |
-| department                 | string        | normalized           |
-| job_role                   | string        | normalized           |
-| job_level                  | integer       |                      |
-| over_time                  | boolean       | Yes/No → true/false |
-| monthly_income             | decimal(12,2) |                      |
-| percent_salary_hike        | integer       |                      |
-| years_at_company           | integer       |                      |
-| years_since_last_promotion | integer       |                      |
-| total_working_years        | integer       |                      |
-| job_satisfaction           | integer       | range [1-4]          |
-| environment_satisfaction   | integer       | range [1-4]          |
-| relationship_satisfaction  | integer       | range [1-4]          |
-| work_life_balance          | integer       | range [1-4]          |
-| attrition                  | boolean       | Yes/No → true/false |
-
-📌 Basado en catálogo Silver (página 1)
-
----
-
-## Output Format
-
-* Format: Parquet
-* Compression: Snappy
-* Structure: columnar (Athena optimized)
-
----
-
-## Example Path
+Current AWS path:
 
 ```text
-s3://<bucket>/silver/hr_attrition/data.parquet
+s3://<data_lake_bucket>/bronze/hr_attrition/landing/<file>.csv
 ```
 
----
+Characteristics:
 
-# 🥇 4. Gold Layer (Enriched / Analytics)
+- Format: CSV
+- Business transformations: none
+- Trigger mode: event-driven
+- Physical copy to `raw`: removed from the current design
 
-## 🎯 Purpose
+## Silver
 
-Create a dataset ready for analytics and BI.
+Purpose:
 
----
+- Clean, type, and normalize the source dataset.
+- Produce an analytics-friendly parquet dataset.
 
-## Table: `gold_hr_attrition_fact`
+Current dataset:
 
-### Core Structure
+- Logical name: `silver_hr_employees`
+- Physical path: `s3://<data_lake_bucket>/silver/hr_employees/`
 
-#### Identifiers
+Key transformations:
 
-* employee_id (int)
+- string cleanup and normalization
+- numeric casts
+- `Yes` / `No` normalization to booleans
+- metadata injection for lineage
 
-#### Ingestion partition
+Technical metadata columns:
 
-* ingestion_year (int)
-* ingestion_month (int)
+- `source_file`
+- `run_id`
+- `processed_at_utc`
 
-#### Organizational context
+Output characteristics:
 
-* department (string)
-* job_role (string)
-* job_level (int)
+- Format: Parquet
+- Compression: Snappy
+- Layout: dataset
+- Write mode: full overwrite per run
 
-#### Main event
+## Gold
 
-* attrition (boolean)
+Purpose:
 
-#### Compensation
+- Build the analytical fact dataset used for downstream querying.
+- Add ingestion metadata and business-friendly labels.
 
-* monthly_income (decimal)
-* percent_salary_hike (int)
+Current dataset:
 
-#### Experience
+- Logical name: `gold_hr_attrition_fact`
+- Physical base path: `s3://<data_lake_bucket>/gold/hr_attrition/`
 
-* years_at_company (int)
-* years_since_last_promotion (int)
-* total_working_years (int)
+Key enrichments:
 
-#### Work conditions
+- Likert score to label mapping
+- ingestion metadata columns
+- curated analytical shape for Athena and BI
 
-* over_time (boolean)
-
-#### Satisfaction (numeric)
-
-* job_satisfaction_score (int)
-* environment_satisfaction_score (int)
-* relationship_satisfaction_score (int)
-* work_life_balance_score (int)
-
-#### Satisfaction (categorical)
-
-* job_satisfaction_label (string)
-* environment_satisfaction_label (string)
-* relationship_satisfaction_label (string)
-* work_life_balance_label (string)
-
-📌 Basado en esquema Gold (página 2)
-
----
-
-# 🧠 5. Enrichment Logic (Gold)
-
-## Likert → Label Mapping
+Partitioning:
 
 ```text
-1 → low
-2 → medium
-3 → high
-4 → very_high
+year=YYYY/month=M/day=D
 ```
 
-📌 Definido en lógica de enriquecimiento (página 3)
+Technical metadata columns:
 
----
+- `ingestion_date`
+- `year`
+- `month`
+- `day`
+- `source_file`
+- `run_id`
+- `processed_at_utc`
 
-## Rule
+Output characteristics:
 
-Apply mapping to all satisfaction columns.
+- Format: Parquet
+- Layout: partitioned dataset
+- Write mode: overwrite current partition only
 
----
+## Runtime Model
 
-# 🪣 6. Storage Strategy (S3)
+The project supports two execution modes from the same configuration:
 
-## Partitioning
+- `local` with `duckdb`
+- `aws` with `glue_spark`
 
-```text
-s3://hr-data-lake/analytics/hr_attrition/
-    ingestion_year=YYYY/
-        ingestion_month=MM/
-            data.parquet
-```
+The business logic is externalized into:
 
-📌 Basado en ubicación S3 (página 3)
+- `src/configs/transformations.yaml`
+- `src/configs/contracts.yaml`
+- `src/queries/bronze_to_silver.sql`
+- `src/queries/silver_to_gold.sql`
 
----
+Python is responsible for runtime orchestration, validation, and materialization.
 
-## Benefits
+## AWS Status
 
-* Optimized Athena queries
-* Partition pruning
-* Cost reduction
+Current operational status:
 
----
+- local pipeline: validated
+- AWS pipeline: validated functionally for the main `landing -> silver -> gold` path
+- CI/CD and fully automated deploy flow: still partial
+- remote Terraform backend and production-grade deployment automation: still pending
 
-# ⚙️ 7. Format Strategy
+## Notes
 
-| Layer  | Schema      | Format  |
-| ------ | ----------- | ------- |
-| Bronze | Not defined | CSV     |
-| Silver | Typed       | Parquet |
-| Gold   | Optimized   | Parquet |
-
-📌 Resumen del PDF (página 3)
-
----
-
-# 🔄 8. Pipeline Execution Logic
-
----
-
-## Step 1 — Bronze → Silver
-
-* Read CSV (all string)
-* Apply:
-  * casting
-  * cleaning
-  * normalization
-* Output → Parquet
-
----
-
-## Step 2 — Silver → Gold
-
-* Read Parquet (typed data)
-* Apply:
-  * enrichment (labels)
-  * partition columns
-* Output → partitioned Parquet
-
----
-
-# 🧩 9. Design Principles
-
----
-
-## 1. Separation of concerns
-
-* YAML → business rules
-* SQL → transformations
-* Python → execution
-
----
-
-## 2. Data contracts
-
-* Silver defines schema
-* Gold defines business semantics
-
----
-
-## 3. Idempotency
-
-* Pipelines can run multiple times safely
-
----
-
-## 4. Engine-agnostic design
-
-* Works with:
-  * Glue (Spark)
-  * Athena
-  * DuckDB (local)
-
----
-
-# 🚀 10. Final Insight
-
-This pipeline is not just ETL.
-
-It is:
-
-> A reproducible, config-driven data platform
-> where logic is externalized and execution is scalable
-
----
+- `docs/Data Lakehouse Architecture.png` is not the source of truth for this document.
+- Some `.tinker` detector outputs are heuristic and may still over-report technologies such as `airflow`, `ecs`, `ecr`, or `lambda`. The repository structure under `src/`, `infra/`, and `tests/` remains the authoritative technical source.

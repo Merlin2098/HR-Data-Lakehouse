@@ -22,10 +22,10 @@ Current repo status:
 - Local pipeline implemented and validated end to end
 - AWS-oriented runtime path implemented in code
 - Terraform expanded from phase-1 minimal infra to an AWS-style MVP definition
-- Terraform has not been validated or applied from this session
-- AWS execution has not been validated yet
+- The main AWS execution path has been validated functionally
+- CI/CD automation, remote backend, and stronger deployment ergonomics are still partial
 
-This means the repository is ahead in implementation design, but AWS deployment and runtime verification are still pending.
+This means the repository has moved beyond implementation-only design: the main AWS path works, but operational maturity is still incomplete.
 
 ---
 
@@ -62,41 +62,46 @@ Important note:
 
 ---
 
-## Phase 2 - Code Deployment via Terraform - IMPLEMENTED IN REPO
+## Phase 2 - Code Deployment via Terraform - VALIDATED IN REPO AND USED IN AWS
 
 Completed in code/IaC:
 
 - Terraform module for asset deployment exists
-- Glue scripts, YAML configs, SQL queries, and contracts are defined to be uploaded to the `scripts` bucket
+- Glue scripts, runtime zip, YAML configs, SQL queries, and contracts are defined to be uploaded to the `scripts` bucket
 - Asset versioning is driven by Terraform file hashes
 
-Pending validation:
+Validated scope:
 
-- `terraform validate`
-- `terraform plan`
-- real upload of assets to AWS through `terraform apply`
+- Terraform uploads the runtime assets used by Glue
+- File-hash driven updates are in place for deployed assets
+
+Still partial:
+
+- remote backend
+- fully automated deploy workflow
 
 ---
 
-## Phase 3 - AWS Pipeline Execution - IMPLEMENTED IN CODE, NOT VALIDATED IN AWS
+## Phase 3 - AWS Pipeline Execution - VALIDATED FUNCTIONALLY
 
-Completed in code:
+Completed in code and functionally exercised:
 
 - Runtime supports `execution_mode: local | aws`
 - Runtime supports `engine: duckdb | glue_spark`
 - Glue-oriented scripts accept AWS-style runtime arguments
-- `bronze_to_silver` and `silver_to_gold` jobs are modeled
+- `bronze_to_silver` and `silver_to_gold` jobs are modeled and executed through Step Functions
 - Landing acts as the event-driven ingress object for `bronze_to_silver`
+- The main `landing -> silver -> gold` execution path has already run in AWS
 
-Pending AWS validation:
+Still partial:
 
-- Run the Glue jobs in AWS
-- Verify S3 writes for bronze, silver, and gold
-- Verify CloudWatch logs and job arguments in real execution
+- broader regression coverage across repeated AWS runs
+- deploy automation beyond manual Terraform apply
+- additional operational hardening
 
 ---
 
-## Phase 4 - AWS MVP Expansion - IMPLEMENTED IN REPO, NOT DEPLOYED
+## Phase 4 - AWS MVP Expansion - DEPLOYED PARTIALLY, STILL MATURING
 
 Completed in code/IaC:
 
@@ -110,12 +115,18 @@ Completed in code/IaC:
 - AWS Budgets scaffolding for monthly cost tracking per environment
 - SNS budget alert delivery scaffolding with optional email subscriptions
 
-Pending AWS validation:
+Validated / exercised scope:
 
-- Deploy Terraform resources
-- Validate state machine execution
-- Validate Athena queries against the catalog
-- Validate alarms and operational logs
+- state machine execution
+- event-driven trigger path from landing
+- Glue outputs in silver and gold
+
+Still partial:
+
+- repeatable deploy automation
+- remote Terraform backend
+- broader observability hardening
+- production-grade operating model
 
 ---
 
@@ -123,15 +134,15 @@ Pending AWS validation:
 
 From a repository implementation perspective, the project is currently in:
 
-> Phase 4 implemented in code, pending infrastructure validation and AWS execution
+> Phase 4 implemented in code, with the main AWS path already exercised functionally
 
 From an operational perspective, the project is currently in:
 
-> Phase 0 fully validated locally, with AWS phases still pending deployment and runtime verification
+> Phase 0 fully validated locally, with AWS already validated functionally but still not fully automated or hardened
 
 Both statements are true and should be used carefully depending on whether we are speaking about:
 
-- repo implementation status, or
+- repo implementation status
 - deployed production status
 
 ---
@@ -157,13 +168,19 @@ Implemented in Terraform definitions:
 - `athena`
 - `orchestration`
 - `observability`
+- `budgets`
 
-Not yet verified in AWS:
+Already verified functionally in AWS:
 
-- actual Terraform deployment
-- actual Glue runs
+- Terraform-driven asset deployment
+- actual Glue runs for the main path
 - actual Step Functions execution
-- actual Athena validation
+
+Still partial:
+
+- a more automated deployment path
+- remote backend adoption
+- broader validation around Athena and operational guardrails
 
 ---
 
@@ -186,24 +203,32 @@ Use this only after real validation:
 - Assets exist in S3
 - Glue jobs execute successfully
 - Step Functions runs the event-driven pipeline successfully after a landing upload
-- Athena queries the published datasets
+- Athena can query the published datasets
 - Monitoring signals failures correctly
 
-The project has reached the first status, but not the second one yet.
+The project has reached the first status and part of the second one, but it has not yet reached a fully automated, production-hardened AWS operating model.
 
 ---
 
 # Next Real Step
 
-The next practical step is no longer to design more infrastructure in code.
+The next practical step is no longer to prove the main AWS path works. That has already been done.
 
 The next real milestone is:
 
-1. run `terraform validate` on `infra/`
-2. run a `terraform plan` for `dev`
-3. deploy the AWS MVP resources
-4. upload a daily source file to landing
-5. execute the Step Functions workflow in AWS
-6. verify bronze, silver, gold, catalog, Athena, and logs end to end
+1. stabilize documentation and generated context artifacts
+2. adopt a cleaner deploy workflow for AWS updates
+3. decide on remote Terraform state and backend locking
+4. improve repeatability of manual retries and operational validation
+5. continue hardening observability and CI/CD
 
 ---
+
+# Tinker Metadata Note
+
+The `.tinker/` artifacts are generated and useful for context loading, but some detector outputs remain heuristic. In practice this means:
+
+- `has_tests`, `has_ci`, and the repo layout are accurate after regeneration
+- some technology signals may still over-report items such as `airflow`, `ecs`, `ecr`, or `lambda`
+
+For architecture and runtime truth, prefer the repository structure under `src/`, `infra/`, and `tests/`.

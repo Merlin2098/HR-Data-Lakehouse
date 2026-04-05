@@ -1,73 +1,73 @@
 # Terraform Usage
 
-## Objetivo
+## Objective
 
-Este documento define como usar Terraform en este repo de forma:
+This document defines how to use Terraform in this repository in a way that is:
 
-- local-friendly para pruebas manuales
-- reusable para otros developers
-- compatible con una futura ejecucion por CI/CD
+- local-friendly for manual testing
+- reusable for other developers
+- compatible with future CI/CD execution
 
-## Principios
+## Principles
 
-- El repo define infraestructura, no credenciales.
-- Las credenciales AWS nunca se versionan.
-- El perfil local es una comodidad opcional, no una dependencia del sistema.
-- CI/CD no debe depender de perfiles locales.
+- The repository defines infrastructure, not credentials.
+- AWS credentials are never versioned.
+- A local profile is an optional convenience, not a system dependency.
+- CI/CD must not depend on local profiles.
 
-## Estructura Terraform
+## Terraform Structure
 
-El root module vive en:
+The root module lives in:
 
 - [main.tf](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/main.tf)
 
-Los archivos principales estan en:
+The main files are:
 
 - [provider.tf](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/provider.tf)
 - [variables.tf](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/variables.tf)
 - [dev.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/dev.tfvars)
 - [prod.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/prod.tfvars)
 
-La topologia actual usa:
+The current topology uses:
 
-- 1 bucket `data_lake` por entorno con prefijos `bronze/`, `silver/` y `gold/`
-- 1 bucket separado para `scripts`
-- 1 bucket separado para `athena-results`
-- 1 AWS Budget mensual por entorno para seguimiento de gasto
+- one `data_lake` bucket per environment with `bronze/`, `silver/`, and `gold/` prefixes
+- one separate bucket for `scripts`
+- one separate bucket for `athena-results`
+- one monthly AWS Budget per environment for spend tracking
 
-Nota operativa sobre buckets:
+Operational note about buckets:
 
-- `data_lake` y `athena-results` siguen con `SSE-KMS`
-- `scripts` usa `SSE-S3 (AES256)` para facilitar inspeccion manual en demo
-- `root` de la cuenta y los ARNs declarados en `scripts_bucket_reader_arns` tienen acceso de solo lectura al bucket `scripts`
-- Terraform crea placeholders `.keep` en los prefijos medallion operativos del bucket `data_lake`
-- esos placeholders solo hacen visible la estructura base y no reemplazan la carga de datos reales
-- las rutas fisicas curadas en AWS estan normalizadas como `silver/hr_employees/` y `gold/hr_attrition/`
-- `landing` funciona como drop zone y trigger; no existe una copia operativa adicional en `raw`
+- `data_lake` and `athena-results` continue to use `SSE-KMS`
+- `scripts` uses `SSE-S3 (AES256)` to make manual inspection easier during demos
+- the account root principal and the ARNs declared in `scripts_bucket_reader_arns` have read-only access to the `scripts` bucket
+- Terraform creates `.keep` placeholders in the operational medallion prefixes of the `data_lake` bucket
+- those placeholders only make the base structure visible and do not replace real data ingestion
+- the curated AWS physical paths are normalized as `silver/hr_employees/` and `gold/hr_attrition/`
+- `landing` acts as the drop zone and trigger path; there is no additional operational copy in `raw`
 
-## Trigger y retry del pipeline
+## Pipeline Trigger and Retry
 
-Trigger automatico en AWS:
+Automatic AWS trigger:
 
-- subir un CSV a `s3://<data_lake_bucket>/bronze/hr_attrition/landing/<archivo>.csv`
-- EventBridge detecta `Object Created`
-- Step Functions normaliza el payload y ejecuta:
+- upload a CSV to `s3://<data_lake_bucket>/bronze/hr_attrition/landing/<file>.csv`
+- EventBridge detects `Object Created`
+- Step Functions normalizes the payload and executes:
   - `bronze_to_silver`
   - `silver_to_gold`
   - `validate_catalog`
-- cada task Glue conserva `business_date`, `run_id` y `source_filename` en el payload raiz y adjunta su resultado en subcampos dedicados
-- `bronze_to_silver` procesa directamente el objeto exacto de `landing` que disparo el evento
+- each Glue task preserves `business_date`, `run_id`, and `source_filename` at the root payload and attaches its result in dedicated subfields
+- `bronze_to_silver` processes the exact landing object that triggered the event
 
-Retry manual sin reupload:
+Manual retry without re-upload:
 
-- obtener el ARN de la state machine:
+- get the state machine ARN:
 
 ```powershell
 $env:AWS_PROFILE="admin2"
 terraform -chdir=infra output -raw state_machine_arn
 ```
 
-- reprocesar un objeto ya existente en S3:
+- reprocess an object that already exists in S3:
 
 ```powershell
 $env:AWS_PROFILE="admin2"
@@ -78,21 +78,21 @@ $stateMachineArn = terraform -chdir=infra output -raw state_machine_arn
   --business-date 2026-04-04
 ```
 
-Notas operativas:
+Operational notes:
 
-- el helper construye el input manual esperado por `NormalizeManualInput`
-- `source_filename` se deriva del ultimo segmento del key S3
-- `business_date` se controla de forma explicita y no se infiere del nombre del archivo
-- si omites `--run-id`, el helper genera uno nuevo
-- si omites `--event-time`, el helper usa el timestamp UTC actual
-- no se vuelve a subir el archivo; el objeto debe existir previamente en `landing`
-- el retry manual tampoco depende de un prefijo `raw`
+- the helper builds the manual input expected by `NormalizeManualInput`
+- `source_filename` is derived from the last S3 key segment
+- `business_date` is controlled explicitly and is not inferred from the file name
+- if you omit `--run-id`, the helper generates a new one
+- if you omit `--event-time`, the helper uses the current UTC timestamp
+- the file is not uploaded again; the object must already exist in `landing`
+- manual retry does not depend on a `raw` prefix either
 
-## Opciones para autenticacion local
+## Options for Local Authentication
 
-### Opcion recomendada: `AWS_PROFILE`
+### Recommended option: `AWS_PROFILE`
 
-Esta es la forma preferida para trabajar localmente:
+This is the preferred way to work locally:
 
 ```powershell
 $env:AWS_PROFILE="admin2"
@@ -101,36 +101,36 @@ terraform -chdir=infra validate
 terraform -chdir=infra plan -var-file="env/dev.tfvars"
 ```
 
-Ventajas:
+Advantages:
 
-- no ensucia archivos versionados
-- cada developer puede usar su propio perfil
-- se parece al comportamiento esperado en AWS SDK/CLI
+- keeps versioned files clean
+- each developer can use their own profile
+- mirrors the expected AWS SDK and CLI behavior
 
-### Opcion opcional: `local.auto.tfvars`
+### Optional option: `local.auto.tfvars`
 
-Si quieres evitar exportar variables en cada sesion, puedes crear un archivo local no versionado:
+If you want to avoid exporting variables in every session, you can create a local unversioned file:
 
 - `infra/env/local.auto.tfvars`
 
-Toma como base:
+Use this template:
 
 - [local.auto.tfvars.example](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/local.auto.tfvars.example)
 
-Ejemplo:
+Example:
 
 ```hcl
 aws_profile = "admin2"
 aws_region  = "us-east-1"
 ```
 
-Ese archivo esta ignorado por Git para no contaminar el repo.
+That file is ignored by Git so it does not pollute the repository.
 
-## Convencion de comandos
+## Command Convention
 
 ### Windows PowerShell
 
-Usa esta forma para `-var-file`:
+Use this form for `-var-file`:
 
 ```powershell
 terraform -chdir=infra init -backend=false
@@ -146,89 +146,89 @@ terraform -chdir=infra validate
 terraform -chdir=infra plan -var-file=env/dev.tfvars
 ```
 
-## Prerrequisito minimo
+## Minimum Prerequisite
 
-Antes de correr `terraform plan`, esta llamada debe funcionar:
+Before running `terraform plan`, this command must work:
 
 ```powershell
 aws sts get-caller-identity --region us-east-1
 ```
 
-Si eso falla, Terraform tambien fallara por credenciales.
+If that fails, Terraform will fail too because of credentials.
 
 ## CI/CD
 
-La estrategia esperada para CI/CD es:
+The intended CI/CD strategy is:
 
 - `terraform fmt -check`
 - `terraform init -backend=false`
 - `terraform validate`
 - `terraform plan -var-file=env/dev.tfvars`
 
-Triggers actuales del workflow:
+Current workflow triggers:
 
-- `push` a `main`
+- `push` to `main`
 - `pull_request`
 - `workflow_dispatch`
 
-Autenticacion recomendada:
+Recommended authentication:
 
-- `OIDC + assume role` en AWS
+- `OIDC + assume role` in AWS
 
-Fallback aceptable:
+Acceptable fallback:
 
-- credenciales temporales inyectadas como secrets del pipeline
+- temporary credentials injected as pipeline secrets
 
-No se debe usar `aws_profile` dentro del pipeline CI/CD.
-El `plan` automatico de GitHub Actions esta acotado a `dev`; `prod` sigue siendo manual en esta etapa.
+`aws_profile` must not be used inside the CI/CD pipeline.
+The automatic GitHub Actions `plan` is intentionally scoped to `dev`; `prod` remains manual at this stage.
 
-## FinOps basico
+## Basic FinOps
 
-El control de gasto se define en:
+Spend control is defined in:
 
 - [dev.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/dev.tfvars)
 - [prod.tfvars](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/env/prod.tfvars)
 
-Variables relevantes:
+Relevant variables:
 
 - `monthly_budget_limit_usd`
 - `alert_email_endpoints`
 
-Comportamiento actual:
+Current behavior:
 
-- 1 budget mensual por entorno
-- alertas al `80%` y `100%`
-- seguimiento de `actual spend` y `forecasted spend`
-- envio de alertas al SNS del modulo de observabilidad
-- suscripciones opcionales por email administradas con Terraform
+- one monthly budget per environment
+- alerts at `80%` and `100%`
+- tracking for `actual spend` and `forecasted spend`
+- alert delivery to the SNS topic from the observability module
+- optional email subscriptions managed with Terraform
 
-Notas:
+Notes:
 
-- el budget monitorea gasto, no bloquea despliegues
-- la separacion por entorno depende del tag `Environment`
-- para que el filtro por tag sea efectivo en AWS Budgets, el cost allocation tag `Environment` debe estar activado en Billing
-- los correos SNS requieren confirmacion manual despues del `apply`
-- el topic SNS esta cifrado con KMS, por eso existen policies explicitas para SNS y Budgets
+- the budget monitors spend; it does not block deployments
+- environment separation depends on the `Environment` tag
+- for tag filtering to work in AWS Budgets, the `Environment` cost allocation tag must be enabled in Billing
+- SNS emails require manual confirmation after `apply`
+- the SNS topic is encrypted with KMS, which is why explicit policies exist for SNS and Budgets
 
 ## Backend
 
-En esta iteracion el repositorio queda preparado para:
+In this iteration the repository is prepared for:
 
-- pruebas locales
-- validacion por CI/CD
+- local testing
+- CI/CD validation
 
-usando:
+using:
 
 ```text
 -backend=false
 ```
 
-El backend remoto para state compartido queda como siguiente fase.
+Remote backend support for shared state remains a future phase.
 
-## Lock file
+## Lock File
 
-El lock file de Terraform se versiona en:
+The Terraform lock file is versioned here:
 
 - [infra/.terraform.lock.hcl](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/infra/.terraform.lock.hcl)
 
-Esto ayuda a que el equipo y CI/CD usen versiones consistentes de providers.
+This helps the team and CI/CD use consistent provider versions.

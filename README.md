@@ -2,6 +2,12 @@
 
 This repository now contains a local bronze-to-silver-to-gold pipeline plus an AWS-oriented infrastructure definition for a production-style HR attrition lakehouse MVP.
 
+Current status:
+
+- local pipeline: validated end to end
+- AWS pipeline: validated functionally for the main `landing -> silver -> gold` path
+- deploy automation, remote Terraform backend, and broader operational hardening: still partial
+
 The current scope now covers:
 
 - Terraform infrastructure in `infra/`

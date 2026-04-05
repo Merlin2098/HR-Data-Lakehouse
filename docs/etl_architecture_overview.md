@@ -1,76 +1,76 @@
 # ETL Architecture Overview
 
-## Objetivo
+## Objective
 
-Este documento describe como esta estructurado el ETL del proyecto `HR Data Lakehouse`, cuales son sus capas, como se ejecuta localmente y como esta modelado para AWS alrededor del pipeline.
+This document describes how the ETL for the `HR Data Lakehouse` project is structured, how it runs locally, and how it operates today in AWS.
 
-La idea es separar claramente:
+The goal is to clearly separate:
 
-- el flujo de datos del ETL
-- la configuracion que gobierna la logica
-- los servicios AWS que habilitan la ejecucion, catalogo, seguridad y observabilidad
+- the real ETL data flow
+- the configuration that governs the logic
+- the AWS services that provide execution, cataloging, security, and observability
 
-## Vista General
+## Overview
 
-El proyecto sigue una arquitectura `medallion` con el flujo:
+The project follows a `medallion` architecture with the current flow:
 
 ```text
 Landing -> Silver -> Gold
 ```
 
-En terminos de ejecucion, el sistema esta pensado para dos modos:
+In execution terms, the system operates in two modes:
 
-- `local`, usando `DuckDB`
-- `aws`, usando `Glue Spark`
+- `local`, using `DuckDB`
+- `aws`, using `Glue Spark`
 
-La logica de negocio no vive hardcodeada en Python. Se divide de esta manera:
+Business logic does not live hardcoded in Python. It is split across:
 
-- `YAML`: configuracion del pipeline
-- `SQL`: transformaciones de datos
-- `Python`: runtime, orquestacion tecnica, validaciones y materializacion
+- `YAML`: pipeline configuration
+- `SQL`: data transformations
+- `Python`: runtime, technical orchestration, validations, and materialization
 
-## Estructura del ETL
+## ETL Structure
 
 ### 1. Landing
 
-Es la zona de llegada del archivo fuente.
+This is the arrival zone for the source file and the pipeline trigger point in AWS.
 
-- En local, el dataset base es [HR-Employee-Attrition.csv](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/data/HR-Employee-Attrition.csv)
-- En AWS, el archivo llega al bucket compartido de data lake bajo el prefijo `bronze/hr_attrition/landing/`
-- El trigger del pipeline se basa en la creacion de un objeto CSV en ese prefijo
+- Locally, the base dataset is [HR-Employee-Attrition.csv](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/data/HR-Employee-Attrition.csv)
+- In AWS, the file lands in the shared data lake bucket under the prefix `bronze/hr_attrition/landing/`
+- The pipeline trigger is based on the creation of a CSV object in that prefix
 
-Landing no aplica transformaciones de negocio. Solo representa el punto de entrada.
+Landing does not apply business transformations. It only represents the entry point.
 
 ### 2. Bronze
 
-Bronze en AWS se reduce a la zona de entrada `landing`.
+In AWS, bronze is reduced to the `landing` ingress zone.
 
-- El archivo CSV llega a `bronze/hr_attrition/landing/`
-- Ese mismo objeto actua como trigger del pipeline y como fuente exacta para `bronze_to_silver`
-- Ya no existe una promocion fisica adicional hacia un prefijo `raw`
+- The CSV file lands in `bronze/hr_attrition/landing/`
+- That same object acts as both the pipeline trigger and the exact source for `bronze_to_silver`
+- There is no longer an additional physical promotion to a `raw` prefix
 
-Esto simplifica el flujo y elimina una copia sin valor de transformacion.
+This simplifies the flow and removes a copy that added no transformation value.
 
 ### 3. Silver
 
-Silver es la capa curada y tipada.
+Silver is the curated and typed layer.
 
-El job `bronze_to_silver`:
+The `bronze_to_silver` job:
 
-- lee el CSV raw
-- limpia y normaliza strings
-- hace casteos de tipos
-- convierte `Yes/No` a booleanos
-- descarta columnas no requeridas
-- escribe Parquet con compresion `snappy`
+- reads the CSV from the exact `landing` object
+- cleans and normalizes strings
+- performs type casting
+- converts `Yes/No` values to booleans
+- drops non-required columns
+- writes Parquet with `snappy` compression
 
-La salida actual se modela como dataset Parquet no particionado.
+The current output is modeled as a non-partitioned Parquet dataset.
 
-Dataset logico:
+Logical dataset:
 
 - `silver_hr_employees`
 
-Metadata tecnica incluida:
+Included technical metadata:
 
 - `source_file`
 - `run_id`
@@ -78,27 +78,27 @@ Metadata tecnica incluida:
 
 ### 4. Gold
 
-Gold es la capa analitica.
+Gold is the analytical layer.
 
-El job `silver_to_gold`:
+The `silver_to_gold` job:
 
-- lee el dataset silver
-- aplica enriquecimiento analitico
-- genera labels tipo Likert
-- agrega metadata de ingesta
-- escribe Parquet particionado en formato `Hive-style`
+- reads the silver dataset
+- applies analytical enrichment
+- generates Likert-style labels
+- adds ingestion metadata
+- writes partitioned Parquet in `Hive-style` format
 
-La particion actual es:
+The current partition scheme is:
 
 ```text
 year=YYYY/month=M/day=D
 ```
 
-Dataset logico:
+Logical dataset:
 
 - `gold_hr_attrition_fact`
 
-Metadata tecnica y operativa:
+Technical and operational metadata:
 
 - `ingestion_date`
 - `year`
@@ -108,83 +108,84 @@ Metadata tecnica y operativa:
 - `run_id`
 - `processed_at_utc`
 
-Politica de escritura:
+Write policy:
 
 - `silver`: `overwrite_full`
 - `gold`: `overwrite_partition`
 
-Eso significa que silver se reconstruye completo por corrida, mientras que gold solo reemplaza la particion del dia procesado.
+That means silver is rebuilt fully on each run, while gold only replaces the processed-day partition.
 
-## Archivos que gobiernan el pipeline
+## Files That Govern the Pipeline
 
-Los artefactos principales del ETL estan en `src/`:
+The main ETL artifacts live under `src/`:
 
-- [transformations.yaml](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/configs/transformations.yaml): define pipelines, fuentes, targets, write modes, layouts y referencias a assets
-- [contracts.yaml](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/configs/contracts.yaml): define contratos de silver y gold, calidad minima y metadata operativa
-- [bronze_to_silver.sql](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/queries/bronze_to_silver.sql): limpieza y tipado
-- [silver_to_gold.sql](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/queries/silver_to_gold.sql): enriquecimiento analitico
-- [pipeline_runtime.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/common/pipeline_runtime.py): runtime comun para local y AWS
-- [bronze_to_silver.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/bronze_to_silver.py): transformacion curada
-- [silver_to_gold.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/silver_to_gold.py): transformacion analitica
+- [transformations.yaml](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/configs/transformations.yaml): defines pipelines, sources, targets, write modes, layouts, and asset references
+- [contracts.yaml](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/configs/contracts.yaml): defines silver and gold contracts, minimum quality rules, and operational metadata
+- [bronze_to_silver.sql](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/queries/bronze_to_silver.sql): cleaning and typing
+- [silver_to_gold.sql](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/queries/silver_to_gold.sql): analytical enrichment
+- [pipeline_runtime.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/common/pipeline_runtime.py): shared runtime for local and AWS execution
+- [bronze_to_silver.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/bronze_to_silver.py): curated transformation
+- [silver_to_gold.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/silver_to_gold.py): analytical transformation
+- [retry_state_machine.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/retry_state_machine.py): manual retry helper for Step Functions
 
-## Ejecucion Local
+## Local Execution
 
-En local el pipeline usa:
+Locally, the pipeline uses:
 
 - `execution_mode: local`
 - `engine: duckdb`
 
-El runner principal es:
+The main runner is:
 
 - [run_local_pipeline.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/run_local_pipeline.py)
 
-Flujo local:
+Local flow:
 
-1. lee el CSV de `data/`
-2. genera silver como dataset Parquet local
-3. genera gold como dataset Parquet particionado local
+1. reads the CSV from `data/`
+2. generates silver as a local Parquet dataset
+3. generates gold as a partitioned local Parquet dataset
 
-Este modo permite validar logica, contratos y outputs sin depender de AWS.
+This mode allows logic, contracts, and outputs to be validated without depending on AWS.
 
-## Ejecucion AWS
+## AWS Execution
 
-En AWS el pipeline esta modelado para usar:
+In AWS the pipeline operates with:
 
 - `execution_mode: aws`
 - `engine: glue_spark`
 
-### Trigger del ETL
+### ETL Trigger
 
-El procesamiento se gatilla cuando se crea un CSV en el prefijo de landing dentro de `bronze/` del bucket compartido de data lake.
+Processing starts when a CSV is created in the landing prefix inside `bronze/` of the shared data lake bucket.
 
-Flujo esperado:
+Current flow:
 
-1. S3 recibe el archivo en `bronze/hr_attrition/landing/`
-2. S3 publica el evento hacia EventBridge
-3. EventBridge filtra `Object Created` para el bucket/prefijo/sufijo correcto
-4. EventBridge inicia la state machine de Step Functions
-5. Step Functions ejecuta:
+1. S3 receives the file in `bronze/hr_attrition/landing/`
+2. S3 publishes the event to EventBridge
+3. EventBridge filters `Object Created` for the correct bucket, prefix, and suffix
+4. EventBridge starts the Step Functions state machine
+5. Step Functions executes:
    - `bronze_to_silver`
    - `silver_to_gold`
    - `validate_catalog`
 
-### Servicios AWS alrededor del ETL
+### AWS Services Around the ETL
 
 #### S3
 
-Se usan estos buckets:
+These buckets are used:
 
 - `data_lake`
 - `scripts`
 - `athena-results`
 
-Responsabilidades:
+Responsibilities:
 
-- almacenamiento raw y curado por prefijos `bronze/`, `silver/` y `gold/`
-- almacenamiento de scripts SQL/YAML/Python
-- resultados de consultas Athena
+- storage for ingest and curated datasets under `bronze/`, `silver/`, and `gold/`
+- storage for SQL, YAML, and Python scripts
+- Athena query results
 
-Rutas fisicas AWS actuales:
+Current AWS physical paths:
 
 - `bronze/hr_attrition/landing/`
 - `silver/hr_employees/`
@@ -192,144 +193,108 @@ Rutas fisicas AWS actuales:
 
 #### AWS Glue
 
-Glue es el motor ETL en nube.
+Glue is the cloud ETL engine.
 
-Jobs modelados:
+Modeled jobs:
 
 - `bronze_to_silver`
 - `silver_to_gold`
 
-Responsabilidades:
+Responsibilities:
 
-- ejecutar los scripts Python
-- correr transformaciones sobre Spark
-- escribir datasets Parquet en S3
+- execute the Python scripts
+- run Spark transformations
+- write Parquet datasets to S3
 
 #### AWS Step Functions
 
-Es el orquestador principal.
+This is the main orchestrator.
 
-Responsabilidades:
+Responsibilities:
 
-- ordenar la secuencia del pipeline
-- propagar parametros de ejecucion
-- centralizar control de flujo
-- dar visibilidad del estado de cada etapa
+- order the pipeline sequence
+- propagate execution parameters
+- centralize control flow
+- provide visibility into the state of each stage
 
 #### Amazon EventBridge
 
-Se usa como mecanismo de disparo por evento.
+This is used as the event-driven trigger mechanism.
 
-Responsabilidades:
+Responsibilities:
 
-- recibir eventos `Object Created` desde S3
-- filtrar solo archivos relevantes del landing
-- iniciar la state machine
+- receive `Object Created` events from S3
+- filter only relevant landing files
+- start the state machine
 
 #### Glue Catalog
 
-Se usa para registrar datasets analiticos.
+This is used to register analytical datasets.
 
-Responsabilidades:
+Responsibilities:
 
-- exponer metadatos de silver y gold
-- servir de catalogo para Athena
+- expose silver and gold metadata
+- serve as the Athena catalog
 
 #### Athena
 
-Se usa para validacion y consumo analitico.
+This is used for validation and analytical consumption.
 
-Responsabilidades:
+Responsibilities:
 
-- consultar silver y gold
-- ejecutar una validacion final al cierre de la state machine
+- query silver and gold
+- execute a final validation step at the end of the state machine
 
-#### CloudWatch y SNS
+#### CloudWatch and SNS
 
-Se usan para observabilidad base.
+These are used for baseline observability.
 
-Responsabilidades:
+Responsibilities:
 
-- logs de Glue y Step Functions
-- alarmas basicas
-- notificaciones operativas
+- Glue and Step Functions logs
+- basic alarms
+- operational notifications
 
 #### KMS
 
-Se usa para cifrado administrado.
+This is used for managed encryption.
 
-Responsabilidades:
+Responsibilities:
 
-- cifrado de buckets S3
-- cifrado de logs y componentes asociados
+- encrypt buckets and sensitive artifacts
+- support the lakehouse security posture
 
-#### IAM
+## Implementation Status
 
-Se usa para permisos y control de acceso.
+The real current status is:
 
-Responsabilidades:
+- the local flow is implemented and validated end to end
+- the AWS path based on Glue, Step Functions, and EventBridge is implemented in code and infrastructure
+- the AWS flow has already been validated functionally in the main `landing -> silver -> gold` chain
+- the shared runtime and Glue assets are deployed through Terraform
+- deployment automation, remote Terraform backend support, and operational hardening are still partial
 
-- rol de Glue
-- rol de Step Functions
-- permisos least-privilege entre buckets, catalogo, logs y Athena
+In other words:
 
-## Modulos Terraform relacionados
+- `local`: validated
+- `aws functional`: already exercised in the main pipeline
+- `aws mature operations`: still evolving
 
-La infraestructura se organiza en `infra/modules/` con estos modulos principales:
+## Summary
 
-- `kms`
-- `s3`
-- `assets`
-- `iam`
-- `glue`
-- `catalog`
-- `athena`
-- `orchestration`
-- `observability`
+This project implements a `config-driven` ETL with:
 
-Su funcion combinada es:
+- event-driven ingestion from `landing`
+- a curated silver layer
+- an analytical gold layer
+- local support with DuckDB
+- AWS support with Glue Spark
+- orchestration with Step Functions
+- event triggering with EventBridge
+- cataloging with Glue Catalog
+- final validation with Athena
 
-- provisionar los servicios
-- subir assets del pipeline a S3
-- conectar trigger, ejecucion, catalogo y monitoreo
+Note about `.tinker`:
 
-## Validaciones del runtime
-
-El runtime no solo transforma datos; tambien valida condiciones minimas:
-
-- esquema exacto contra contrato
-- claves requeridas
-- rangos de scores
-- valores permitidos para labels
-- consistencia entre `ingestion_date` y particiones
-
-Esto ayuda a que el pipeline se comporte mas como un entorno productivo y no solo como una demo de transformacion.
-
-## Estado actual del sistema
-
-Hoy el sistema esta en este punto:
-
-- el pipeline local esta implementado y validado
-- el runtime AWS esta implementado en codigo
-- la infraestructura Terraform esta modelada
-- el trigger por `S3 Object Created` esta definido en IaC
-- el flujo AWS ya fue validado funcionalmente y hoy se sigue simplificando la topologia bronze
-
-En otras palabras:
-
-- el diseño y el codigo del ETL ya existen
-- la validacion operativa en AWS sigue pendiente
-
-## Resumen
-
-El ETL del proyecto esta estructurado como una plataforma `SQL-first` y `config-driven` con separacion clara entre:
-
-- ingestión raw
-- transformacion curada
-- dataset analitico
-- orquestacion
-- catalogo
-- seguridad
-- observabilidad
-
-Localmente corre con `DuckDB`. En AWS esta diseñado para correr con `S3 + EventBridge + Step Functions + Glue + Catalog + Athena + CloudWatch/SNS + KMS + IAM`.
+- some detectors are still heuristic and may report spurious signals such as `airflow`, `ecs`, `ecr`, or `lambda`
+- the source of truth for architecture remains the current repository under `src/`, `infra/`, `tests/`, and this documentation

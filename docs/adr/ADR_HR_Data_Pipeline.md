@@ -9,81 +9,91 @@
 
 ## Context
 
-Se requiere diseñar un sistema de datos que permita analizar la rotación de empleados (attrition) y sus factores asociados (salario, antigüedad, satisfacción, condiciones laborales y variables organizacionales).
+We need to design a data system that supports analysis of employee attrition and its related factors such as salary, tenure, satisfaction, working conditions, and organizational variables.
 
-El dataset de entrada corresponde a IBM HR Attrition (CSV) con múltiples columnas de características por empleado.
+The input dataset is IBM HR Attrition (CSV) with multiple employee-level feature columns.
 
-El objetivo es construir un pipeline en AWS que:
-- Preserve la fuente original
-- Aplique limpieza y tipado
-- Modele los datos para análisis
-- Permita consultas eficientes con Athena
-- Sea reproducible mediante Terraform
+The goal is to build an AWS pipeline that:
+
+- preserves the original source
+- applies cleaning and typing
+- models the data for analysis
+- allows efficient Athena queries
+- is reproducible through Terraform
 
 ---
 
 ## Decision
 
-Se adopta una arquitectura de Data Lake en AWS con tres capas:
+An AWS data lake architecture is adopted with three layers:
 
-### 1. Bronze (Raw)
-- Almacena datos originales sin transformación
-- Formato: CSV
-- Ubicación: S3
+### 1. Bronze
 
-### 2. Silver (Processed)
-- Limpieza, normalización y tipado
-- Selección de columnas relevantes
-- Conversión a Parquet
-- Validaciones de esquema
+- stores original data without transformation
+- format: CSV
+- location: S3
 
-### 3. Gold (Analytics)
-- Tabla analítica optimizada (fact table extendida)
-- Enriquecimiento semántico (labels Likert)
-- Particionado por fecha de ingesta
-- Formato Parquet optimizado para Athena
+### 2. Silver
+
+- cleaning, normalization, and typing
+- selection of relevant columns
+- conversion to Parquet
+- schema validations
+
+### 3. Gold
+
+- optimized analytical table (extended fact table)
+- semantic enrichment (Likert labels)
+- partitioning by ingestion date
+- Parquet format optimized for Athena
 
 ---
 
 ## Architecture Overview
 
-Flujo:
+Flow:
 
+```text
 Dataset (CSV)
     ↓
-S3 Bronze (raw)
+S3 Bronze / Landing
     ↓
-AWS Glue (ETL)
+AWS Glue
     ↓
-S3 Silver (Parquet, tipado)
+S3 Silver (typed Parquet)
     ↓
-AWS Glue (transformación final)
+AWS Glue (final transformation)
     ↓
-S3 Gold (Parquet, modelo analítico)
+S3 Gold (analytical Parquet)
     ↓
-Amazon Athena (consulta)
+Amazon Athena
+```
 
 ---
 
 ## Bronze Layer
 
-- Datos inmutables
-- Sin validación ni transformación
-- Ejemplo:
-  s3://hr-data-lake/raw/hr/YYYY/MM/DD/data.csv
+- immutable source data
+- no validation or transformation
+- example:
+
+```text
+s3://hr-data-lake/bronze/hr_attrition/landing/data.csv
+```
 
 ---
 
 ## Silver Layer
 
-### Transformaciones:
-- Casting de tipos
-- Normalización de columnas (snake_case)
-- Normalización de valores (lowercase, trim)
-- Eliminación de columnas irrelevantes
-- Validaciones de esquema
+### Transformations
 
-### Esquema:
+- type casting
+- column normalization (`snake_case`)
+- value normalization (`lowercase`, `trim`)
+- removal of irrelevant columns
+- schema validations
+
+### Schema
 
 - employee_number: integer
 - department: string
@@ -101,24 +111,26 @@ Amazon Athena (consulta)
 - work_life_balance: integer
 - attrition: boolean
 
-Formato: Parquet
+Format: Parquet
 
 ---
 
 ## Gold Layer
 
-### Tabla: gold_hr_attrition_fact
+### Table: `gold_hr_attrition_fact`
 
-Incluye:
-- Métricas
-- Atributos analíticos
-- Representación numérica y semántica
+Includes:
 
-### Esquema:
+- metrics
+- analytical attributes
+- numeric and semantic representation
+
+### Schema
 
 - employee_id: integer
-- ingestion_year: integer
-- ingestion_month: integer
+- year: integer
+- month: integer
+- day: integer
 - department: string
 - job_role: string
 - job_level: integer
@@ -138,83 +150,95 @@ Incluye:
 - relationship_satisfaction_label: string
 - work_life_balance_label: string
 
-### Likert Mapping:
+### Likert Mapping
 
 1 → low  
 2 → medium  
 3 → high  
-4 → very_high  
+4 → very_high
 
-### Partición:
-- ingestion_year
-- ingestion_month
+### Partitioning
+
+- year
+- month
+- day
 
 ---
 
 ## Technology Choices
 
 ### Amazon S3
-- Data Lake escalable
-- Bajo costo
+
+- scalable data lake
+- low cost
 
 ### AWS Glue
-- ETL serverless
-- Integración con Data Catalog
+
+- serverless ETL
+- integration with Data Catalog
 
 ### Amazon Athena
-- Query serverless sobre S3
-- Ideal para análisis exploratorio
+
+- serverless querying over S3
+- ideal for exploratory analytics
 
 ### Parquet
-- Formato columnar
-- Mejor performance y compresión
+
+- columnar format
+- better performance and compression
 
 ### Terraform
-- Infraestructura como código
-- Reproducibilidad
+
+- infrastructure as code
+- reproducibility
 
 ---
 
 ## Alternatives Considered
 
-### Usar CSV en todas las capas
-- Rechazado por baja performance
+### Use CSV in every layer
 
-### Modelo dimensional completo (fact + dims)
-- Rechazado por complejidad innecesaria en Athena
+- rejected because of poor performance
 
-### Uso de Redshift
-- Rechazado para mantener arquitectura serverless
+### Full dimensional model (fact + dimensions)
+
+- rejected due to unnecessary complexity for Athena
+
+### Use Redshift
+
+- rejected to keep the architecture serverless
 
 ---
 
 ## Consequences
 
-### Positivas
-- Arquitectura simple y escalable
-- Bajo costo operativo
-- Fácil de extender a ingestion incremental
-- Buen rendimiento en consultas
+### Positive
 
-### Negativas
-- Sin normalización estricta (fact extendida)
-- Dependencia de buenas prácticas en S3
+- simple and scalable architecture
+- low operational cost
+- easy to extend toward incremental ingestion
+- good query performance
+
+### Negative
+
+- no strict normalization (extended fact table)
+- dependence on good S3 practices
 
 ---
 
 ## Future Improvements
 
-- Ingesta incremental vía API
-- Orquestación con EventBridge / Step Functions
-- Implementación de Slowly Changing Dimensions
-- Dashboard (QuickSight / BI)
+- incremental ingestion through an API
+- orchestration with EventBridge / Step Functions
+- implementation of Slowly Changing Dimensions
+- dashboarding (QuickSight / BI)
 
 ---
 
 ## Notes
 
-Este diseño prioriza:
-- Simplicidad
-- Escalabilidad
-- Claridad para análisis de negocio
+This design prioritizes:
 
+- simplicity
+- scalability
+- clarity for business analysis
