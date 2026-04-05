@@ -2,6 +2,7 @@
 pandas
 polars
 pyarrow
+boto3
 
 # Excel I/O
 fastexcel
@@ -10,9 +11,6 @@ xlsxwriter
 
 # SQL engine
 duckdb
-
-# Frontend
-pyside6
 
 # Validation and schemas
 jsonschema
