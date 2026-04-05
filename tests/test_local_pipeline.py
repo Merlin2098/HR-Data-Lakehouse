@@ -10,8 +10,7 @@ import pyarrow.dataset as ds
 from src.common.pipeline_runtime import PipelineContext, ensure_materialized_output
 from src.common.project_paths import resolve_project_path
 from src.common.resource_loader import list_resource_objects, resource_exists
-from src.glue.bronze_to_silver import run_pipeline as run_bronze_to_silver
-from src.glue.landing_to_bronze import resolve_source_filename, run_pipeline as run_landing_to_bronze
+from src.glue.bronze_to_silver import resolve_bronze_source_uri, run_pipeline as run_bronze_to_silver
 from src.glue.run_local_pipeline import run_pipeline as run_local_pipeline
 from src.glue.silver_to_gold import run_pipeline as run_silver_to_gold
 
@@ -90,25 +89,18 @@ def directory_partitioning():
     )
 
 
-def test_landing_to_bronze_promotes_daily_file_locally() -> None:
-    test_root = unique_test_root("landing_to_bronze")
-    bronze_root = test_root / "bronze" / "raw"
+def test_bronze_to_silver_preserves_exact_landing_object_uri_in_aws_mode() -> None:
+    source_uri = "s3://demo-lake/bronze/hr_attrition/landing/HR-Employee-Attrition.csv"
 
-    result = run_landing_to_bronze(
-        source_uri=str(resolve_project_path("data/HR-Employee-Attrition.csv")),
-        target_uri=str(bronze_root),
-        business_date_value="2026-04-03",
-    )
-
-    assert result["business_date"] == "2026-04-03"
-    assert result["source_file"] == "HR-Employee-Attrition.csv"
-    assert (bronze_root / "ingestion_date=2026-04-03" / "HR-Employee-Attrition.csv").exists()
+    assert resolve_bronze_source_uri(source_uri, "HR-Employee-Attrition.csv") == source_uri
 
 
-def test_landing_to_bronze_derives_source_filename_from_event_uri() -> None:
+def test_bronze_to_silver_can_build_landing_object_uri_from_prefix() -> None:
+    source_uri = "s3://demo-lake/bronze/hr_attrition/landing/"
+
     assert (
-        resolve_source_filename("s3://demo-bronze/hr_attrition/landing/HR-Employee-Attrition.csv")
-        == "HR-Employee-Attrition.csv"
+        resolve_bronze_source_uri(source_uri, "HR-Employee-Attrition.csv")
+        == "s3://demo-lake/bronze/hr_attrition/landing/HR-Employee-Attrition.csv"
     )
 
 

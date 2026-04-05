@@ -15,7 +15,7 @@ La idea es separar claramente:
 El proyecto sigue una arquitectura `medallion` con el flujo:
 
 ```text
-Landing -> Bronze -> Silver -> Gold
+Landing -> Silver -> Gold
 ```
 
 En terminos de ejecucion, el sistema esta pensado para dos modos:
@@ -43,13 +43,13 @@ Landing no aplica transformaciones de negocio. Solo representa el punto de entra
 
 ### 2. Bronze
 
-Bronze representa la capa raw e inmutable.
+Bronze en AWS se reduce a la zona de entrada `landing`.
 
-- El job `landing_to_bronze` promueve el archivo desde landing a una ubicacion raw
-- La convencion es `raw/ingestion_date=YYYY-MM-DD/<filename>`
-- El archivo no se transforma; solo se preserva como evidencia de la carga del dia
+- El archivo CSV llega a `bronze/hr_attrition/landing/`
+- Ese mismo objeto actua como trigger del pipeline y como fuente exacta para `bronze_to_silver`
+- Ya no existe una promocion fisica adicional hacia un prefijo `raw`
 
-Esto permite que bronze actue como fuente de verdad operativa para reprocesos.
+Esto simplifica el flujo y elimina una copia sin valor de transformacion.
 
 ### 3. Silver
 
@@ -124,7 +124,6 @@ Los artefactos principales del ETL estan en `src/`:
 - [bronze_to_silver.sql](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/queries/bronze_to_silver.sql): limpieza y tipado
 - [silver_to_gold.sql](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/queries/silver_to_gold.sql): enriquecimiento analitico
 - [pipeline_runtime.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/common/pipeline_runtime.py): runtime comun para local y AWS
-- [landing_to_bronze.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/landing_to_bronze.py): promocion raw
 - [bronze_to_silver.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/bronze_to_silver.py): transformacion curada
 - [silver_to_gold.py](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/src/glue/silver_to_gold.py): transformacion analitica
 
@@ -165,7 +164,6 @@ Flujo esperado:
 3. EventBridge filtra `Object Created` para el bucket/prefijo/sufijo correcto
 4. EventBridge inicia la state machine de Step Functions
 5. Step Functions ejecuta:
-   - `landing_to_bronze`
    - `bronze_to_silver`
    - `silver_to_gold`
    - `validate_catalog`
@@ -189,7 +187,6 @@ Responsabilidades:
 Rutas fisicas AWS actuales:
 
 - `bronze/hr_attrition/landing/`
-- `bronze/hr_attrition/raw/`
 - `silver/hr_employees/`
 - `gold/hr_attrition/`
 
@@ -199,7 +196,6 @@ Glue es el motor ETL en nube.
 
 Jobs modelados:
 
-- `landing_to_bronze`
 - `bronze_to_silver`
 - `silver_to_gold`
 
@@ -317,7 +313,7 @@ Hoy el sistema esta en este punto:
 - el runtime AWS esta implementado en codigo
 - la infraestructura Terraform esta modelada
 - el trigger por `S3 Object Created` esta definido en IaC
-- la ejecucion real en AWS aun no ha sido validada con `terraform apply` y corridas reales
+- el flujo AWS ya fue validado funcionalmente y hoy se sigue simplificando la topologia bronze
 
 En otras palabras:
 

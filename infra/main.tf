@@ -12,7 +12,6 @@ locals {
 
   resource_tags = merge(local.mandatory_tags, var.common_tags)
 
-  landing_to_bronze_job_name = "${var.name_prefix}-${var.environment}-landing-to-bronze"
   bronze_to_silver_job_name  = "${var.name_prefix}-${var.environment}-bronze-to-silver"
   silver_to_gold_job_name    = "${var.name_prefix}-${var.environment}-silver-to-gold"
 
@@ -20,7 +19,6 @@ locals {
   event_rule_name    = "${var.name_prefix}-${var.environment}-landing-created"
   event_target_id    = "${var.name_prefix}-${var.environment}-start-medallion"
 
-  landing_log_group_name     = "/aws/glue/${local.landing_to_bronze_job_name}"
   bronze_to_silver_log_group = "/aws/glue/${local.bronze_to_silver_job_name}"
   silver_to_gold_log_group   = "/aws/glue/${local.silver_to_gold_job_name}"
   step_functions_log_group   = "/aws/vendedlogs/states/${local.step_function_name}"
@@ -70,7 +68,6 @@ module "iam" {
 module "glue" {
   source                          = "./modules/glue"
   environment                     = var.environment
-  landing_to_bronze_job_name      = local.landing_to_bronze_job_name
   bronze_to_silver_job_name       = local.bronze_to_silver_job_name
   silver_to_gold_job_name         = local.silver_to_gold_job_name
   role_arn                        = module.iam.glue_role_arn
@@ -78,13 +75,11 @@ module "glue" {
   data_lake_bucket                = module.s3.data_lake_bucket_name
   config_key                      = module.assets.config_key
   contract_key                    = module.assets.contract_key
-  landing_script_key              = module.assets.landing_to_bronze_script_key
   bronze_to_silver_script_key     = module.assets.bronze_to_silver_script_key
   silver_to_gold_script_key       = module.assets.silver_to_gold_script_key
   bronze_to_silver_query_key      = module.assets.bronze_to_silver_query_key
   silver_to_gold_query_key        = module.assets.silver_to_gold_query_key
   glue_runtime_package_key        = module.assets.glue_runtime_package_key
-  landing_log_group_name          = local.landing_log_group_name
   bronze_to_silver_log_group_name = local.bronze_to_silver_log_group
   silver_to_gold_log_group_name   = local.silver_to_gold_log_group
   kms_key_arn                     = module.kms.kms_key_arn
@@ -113,7 +108,6 @@ module "orchestration" {
   event_rule_name               = local.event_rule_name
   event_target_id               = local.event_target_id
   step_functions_role_arn       = module.iam.step_functions_role_arn
-  landing_to_bronze_job_name    = module.glue.landing_to_bronze_job_name
   bronze_to_silver_job_name     = module.glue.bronze_to_silver_job_name
   silver_to_gold_job_name       = module.glue.silver_to_gold_job_name
   athena_workgroup_name         = module.athena.workgroup_name

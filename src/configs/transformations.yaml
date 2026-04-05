@@ -9,35 +9,14 @@ defaults:
     source_filename: HR-Employee-Attrition.csv
 
 pipelines:
-  landing_to_bronze:
-    description: Promote the daily landing CSV into an immutable bronze raw location.
-    source:
-      layer: landing
-      dataset_name: landing_hr_employee_attrition
-      format: csv
-      local_uri: data/HR-Employee-Attrition.csv
-      source_uri: s3://{data_lake_bucket}/bronze/hr_attrition/landing/
-    target:
-      layer: bronze
-      dataset_name: bronze_hr_employee_attrition
-      format: csv
-      layout: dataset
-      local_uri: data/output/bronze/hr_attrition/raw
-      target_uri: s3://{data_lake_bucket}/bronze/hr_attrition/raw/
-      write_mode: immutable
-    artifacts:
-      config_path: src/configs/transformations.yaml
-      config_uri: s3://{scripts_bucket}/configs/transformations.yaml
-      contract_path: src/configs/contracts.yaml
-      contract_uri: s3://{scripts_bucket}/configs/contracts.yaml
   bronze_to_silver:
     description: Normalize the HR attrition CSV into a curated silver parquet dataset.
     source:
       layer: bronze
-      dataset_name: raw_hr_employee_attrition
+      dataset_name: landing_hr_employee_attrition
       format: csv
       local_uri: data/HR-Employee-Attrition.csv
-      source_uri: s3://{data_lake_bucket}/bronze/hr_attrition/raw/
+      source_uri: s3://{data_lake_bucket}/bronze/hr_attrition/landing/
       view_name: bronze_hr_attrition
     target:
       layer: silver

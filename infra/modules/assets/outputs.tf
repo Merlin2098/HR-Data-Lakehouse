@@ -1,8 +1,3 @@
-output "landing_to_bronze_script_key" {
-  description = "S3 key for the landing-to-bronze Glue script."
-  value       = aws_s3_object.assets["landing_to_bronze_script"].key
-}
-
 output "bronze_to_silver_script_key" {
   description = "S3 key for the bronze-to-silver Glue script."
   value       = aws_s3_object.assets["bronze_to_silver_script"].key

@@ -8,13 +8,11 @@ Este documento muestra el diagrama de la arquitectura actual del ETL, tanto en s
 
 ```mermaid
 flowchart LR
-    A["Landing CSV"] --> B["landing_to_bronze"]
-    B --> C["Bronze Raw CSV"]
-    C --> D["bronze_to_silver"]
-    D --> E["Silver Parquet Dataset"]
-    E --> F["silver_to_gold"]
-    F --> G["Gold Parquet Dataset"]
-    G --> H["Glue Catalog / Athena"]
+    A["Landing CSV"] --> B["bronze_to_silver"]
+    B --> C["Silver Parquet Dataset"]
+    C --> D["silver_to_gold"]
+    D --> E["Gold Parquet Dataset"]
+    E --> F["Glue Catalog / Athena"]
 ```
 
 ## 2. Arquitectura AWS actual
@@ -26,16 +24,13 @@ flowchart TB
     EV --> EB["EventBridge Rule"]
     EB --> SF["Step Functions State Machine"]
 
-    SF --> J1["Glue Job<br/>landing_to_bronze"]
-    J1 --> S3B["S3 Data Lake Bucket<br/>bronze/hr_attrition/raw/ingestion_date=YYYY-MM-DD/"]
+    SF --> J1["Glue Job<br/>bronze_to_silver"]
+    S3L --> J1
+    J1 --> S3S["S3 Data Lake Bucket<br/>silver/hr_employees/"]
 
-    SF --> J2["Glue Job<br/>bronze_to_silver"]
-    S3B --> J2
-    J2 --> S3S["S3 Data Lake Bucket<br/>silver/hr_employees/"]
-
-    SF --> J3["Glue Job<br/>silver_to_gold"]
-    S3S --> J3
-    J3 --> S3G["S3 Data Lake Bucket<br/>gold/hr_attrition/"]
+    SF --> J2["Glue Job<br/>silver_to_gold"]
+    S3S --> J2
+    J2 --> S3G["S3 Data Lake Bucket<br/>gold/hr_attrition/"]
 
     SF --> ATHV["Athena Validation"]
     S3G --> GC["Glue Catalog"]
@@ -45,16 +40,13 @@ flowchart TB
 
     SCR["S3 Scripts Bucket<br/>Python + YAML + SQL + Contracts"] --> J1
     SCR --> J2
-    SCR --> J3
 
     CW["CloudWatch Logs + Metrics"] --> SF
     CW --> J1
     CW --> J2
-    CW --> J3
 
     SNS["SNS Alerts"] --> CW
     KMS["KMS Encryption"] --> S3L
-    KMS --> S3B
     KMS --> S3S
     KMS --> S3G
     KMS --> SCR
@@ -62,20 +54,17 @@ flowchart TB
     IAM["IAM Roles / Policies"] --> SF
     IAM --> J1
     IAM --> J2
-    IAM --> J3
 ```
 
 ## 3. Detalle de las layers
 
 ```mermaid
 flowchart LR
-    L["Landing<br/>Archivo recibido"] --> BR["Bronze<br/>Raw e inmutable"]
-    BR --> SI["Silver<br/>Curado y tipado"]
+    L["Landing<br/>Archivo recibido y trigger"] --> SI["Silver<br/>Curado y tipado"]
     SI --> GO["Gold<br/>Analitico y particionado"]
 ```
 
-- `Landing`: punto de entrada del archivo CSV.
-- `Bronze`: conserva el raw por fecha de ingesta.
+- `Landing`: punto de entrada del archivo CSV y trigger del pipeline.
 - `Silver`: limpia, tipa y normaliza la data.
 - `Gold`: enriquece la data y la publica para analitica.
 
@@ -98,9 +87,8 @@ flowchart TB
     CON["contracts.yaml"] --> RT
     Q1["bronze_to_silver.sql"] --> RT
     Q2["silver_to_gold.sql"] --> RT
-    RT --> E1["landing_to_bronze.py"]
-    RT --> E2["bronze_to_silver.py"]
-    RT --> E3["silver_to_gold.py"]
+    RT --> E1["bronze_to_silver.py"]
+    RT --> E2["silver_to_gold.py"]
 ```
 
 Esto refleja la separacion de responsabilidades del proyecto:

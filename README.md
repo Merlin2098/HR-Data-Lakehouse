@@ -7,7 +7,7 @@ The current scope now covers:
 - Terraform infrastructure in `infra/`
 - A shared `data_lake` S3 bucket with `bronze/`, `silver/`, and `gold/` prefixes, plus separate `scripts` and `athena-results` buckets
 - KMS-backed encryption and hardened bucket defaults
-- Glue jobs for `landing -> bronze`, `bronze -> silver`, and `silver -> gold`
+- Glue jobs for `landing -> silver` and `silver -> gold`
 - Step Functions orchestration triggered by `S3 Object Created` events through EventBridge
 - Glue Catalog + Athena workgroup for analytics
 - CloudWatch/SNS observability scaffolding
@@ -105,13 +105,13 @@ The Terraform configuration under `infra/` now models an AWS production-style MV
 
 Glue assets are uploaded to S3 through Terraform, and the state machine orchestrates the medallion flow when a new CSV lands in the `bronze/` landing prefix inside the shared data lake bucket:
 
-`landing_to_bronze -> bronze_to_silver -> silver_to_gold -> validate_catalog`
+`bronze_to_silver -> silver_to_gold -> validate_catalog`
 
 Automatic trigger in AWS:
 
 1. Upload a CSV to `s3://<data_lake_bucket>/bronze/hr_attrition/landing/<file>.csv`
 2. EventBridge forwards the S3 event to Step Functions
-3. The state machine normalizes the filename from the last path segment, preserves the execution payload across Glue tasks, and starts the Glue chain
+3. The state machine normalizes the filename from the last path segment, preserves the execution payload across Glue tasks, and starts the Glue chain directly from the uploaded landing object
 
 Manual retry for an existing landing object:
 
@@ -125,6 +125,7 @@ $stateMachineArn = terraform -chdir=infra output -raw state_machine_arn
 ```
 
 The retry helper does not upload files. It only starts a new Step Functions execution for an object that already exists in S3, and it derives `source_filename` from the final key segment automatically.
+In AWS, `landing` now acts only as the drop zone and event trigger; there is no physical promotion copy into `raw` before `bronze_to_silver`.
 
 Terraform local usage is documented in [terraform_usage.md](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/docs/terraform_usage.md).
 
@@ -146,4 +147,4 @@ The automatic `plan` remains intentionally scoped to `dev`. `prod` stays manual 
 AWS cost control is also modeled in Terraform through a monthly budget per environment, with `80%` and `100%` alerts for both actual and forecasted spend routed to the shared SNS alerts topic.
 The shared SNS topic now supports optional email subscriptions via Terraform, but each recipient must still confirm the subscription manually from the AWS email they receive.
 For demo operability, the `scripts` bucket now uses `SSE-S3 (AES256)` and grants read-only inspection access to the account root principal plus configured reader ARNs such as `admin2`, while `data_lake` remains protected with `SSE-KMS`.
-Terraform also materializes `.keep` placeholders in the main medallion prefixes of `data_lake`, so `bronze`, `silver`, and `gold` are visible in S3 before the first Glue run. The ETL still owns the real dataset contents. The current AWS physical layout keeps `bronze/hr_attrition/...` for the event-driven landing flow, and normalizes the curated layers to `silver/hr_employees/` and `gold/hr_attrition/`.
+Terraform also materializes `.keep` placeholders in the main medallion prefixes of `data_lake`, so `bronze`, `silver`, and `gold` are visible in S3 before the first Glue run. The ETL still owns the real dataset contents. The current AWS physical layout keeps `bronze/hr_attrition/landing/` as the event-driven ingress path, and normalizes the curated layers to `silver/hr_employees/` and `gold/hr_attrition/`.

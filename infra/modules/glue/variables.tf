@@ -3,11 +3,6 @@ variable "environment" {
   type        = string
 }
 
-variable "landing_to_bronze_job_name" {
-  description = "Glue Python Shell job name for landing to bronze promotion."
-  type        = string
-}
-
 variable "bronze_to_silver_job_name" {
   description = "Glue ETL job name for bronze to silver."
   type        = string
@@ -43,11 +38,6 @@ variable "contract_key" {
   type        = string
 }
 
-variable "landing_script_key" {
-  description = "S3 key for the landing-to-bronze script."
-  type        = string
-}
-
 variable "bronze_to_silver_script_key" {
   description = "S3 key for the bronze-to-silver script."
   type        = string
@@ -70,11 +60,6 @@ variable "silver_to_gold_query_key" {
 
 variable "glue_runtime_package_key" {
   description = "S3 key for the shared Glue runtime zip package."
-  type        = string
-}
-
-variable "landing_log_group_name" {
-  description = "CloudWatch log group name for the landing job."
   type        = string
 }
 

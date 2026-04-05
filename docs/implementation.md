@@ -6,7 +6,7 @@
 
 Build a serverless AWS lakehouse for HR attrition analytics using:
 
-- Medallion Architecture (`landing -> bronze -> silver -> gold`)
+- Medallion Architecture (`landing -> silver -> gold`)
 - Config-driven pipelines (`YAML + SQL + Python`)
 - Terraform as the source of truth for infrastructure and asset deployment
 - A local execution mode for development plus an AWS-oriented execution mode for Glue
@@ -85,8 +85,8 @@ Completed in code:
 - Runtime supports `execution_mode: local | aws`
 - Runtime supports `engine: duckdb | glue_spark`
 - Glue-oriented scripts accept AWS-style runtime arguments
-- `landing_to_bronze`, `bronze_to_silver`, and `silver_to_gold` jobs are modeled
-- Bronze raw ingestion is designed as immutable and date-based
+- `bronze_to_silver` and `silver_to_gold` jobs are modeled
+- Landing acts as the event-driven ingress object for `bronze_to_silver`
 
 Pending AWS validation:
 
@@ -140,7 +140,7 @@ Both statements are true and should be used carefully depending on whether we ar
 
 Implemented locally and in code:
 
-- `landing -> bronze -> silver -> gold` medallion flow
+- `landing -> silver -> gold` medallion flow
 - Silver and gold contracts with technical metadata
 - Gold partitioning in Hive-style format
 - Contract-driven runtime quality checks

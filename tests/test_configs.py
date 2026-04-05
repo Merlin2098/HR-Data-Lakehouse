@@ -65,7 +65,7 @@ def test_transformations_config_declares_bronze_to_silver_pipeline() -> None:
     pipeline = config["pipelines"]["bronze_to_silver"]
 
     assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition.csv"
-    assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/bronze/hr_attrition/raw/"
+    assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/bronze/hr_attrition/landing/"
     assert pipeline["target"]["format"] == "parquet"
     assert pipeline["target"]["layout"] == "dataset"
     assert pipeline["target"]["write_mode"] == "overwrite_full"
@@ -75,6 +75,7 @@ def test_transformations_config_declares_bronze_to_silver_pipeline() -> None:
     assert pipeline["artifacts"]["config_uri"] == "s3://{scripts_bucket}/configs/transformations.yaml"
     assert pipeline["target"]["local_uri"] == "data/output/silver/hr_employees"
     assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/silver/hr_employees/"
+    assert "landing_to_bronze" not in config["pipelines"]
 
 
 def test_transformations_config_declares_silver_to_gold_pipeline() -> None:
@@ -90,16 +91,6 @@ def test_transformations_config_declares_silver_to_gold_pipeline() -> None:
     assert pipeline["target"]["partition_style"] == "hive"
     assert pipeline["target"]["partition_by"] == ["year", "month", "day"]
     assert pipeline["artifacts"]["query_path"] == "src/queries/silver_to_gold.sql"
-
-
-def test_transformations_config_declares_landing_to_bronze_pipeline() -> None:
-    config = load_yaml_file(resolve_project_path("src/configs/transformations.yaml"))
-    pipeline = config["pipelines"]["landing_to_bronze"]
-
-    assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition.csv"
-    assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/bronze/hr_attrition/landing/"
-    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/bronze/hr_attrition/raw/"
-    assert pipeline["target"]["write_mode"] == "immutable"
 
 
 def test_contract_matches_expected_silver_columns() -> None:
@@ -208,7 +199,7 @@ def test_data_lake_defines_medallion_prefix_placeholders() -> None:
 
     assert 'resource "aws_s3_object" "data_lake_prefix_placeholders"' in s3_tf
     assert 'bronze/hr_attrition/landing/.keep' in s3_tf
-    assert 'bronze/hr_attrition/raw/.keep' in s3_tf
+    assert 'bronze/hr_attrition/raw/.keep' not in s3_tf
     assert 'silver/hr_employees/.keep' in s3_tf
     assert 'gold/hr_attrition/.keep' in s3_tf
     assert "_is_placeholder_key" in resource_loader
@@ -227,12 +218,13 @@ def test_glue_runtime_is_packaged_minimally_and_attached_to_jobs() -> None:
     assert 'data "archive_file" "glue_runtime"' in assets_tf
     assert '"src/common/pipeline_runtime.py"' in assets_tf
     assert '"src/common/resource_loader.py"' in assets_tf
+    assert 'landing_to_bronze_script' not in assets_tf
     assert 'key    = "runtime/glue_runtime.zip"' in assets_tf
     assert 'output "glue_runtime_package_key"' in assets_outputs
     assert 'variable "glue_runtime_package_key"' in glue_vars
     assert 'glue_runtime_package_uri = "s3://${var.script_bucket}/${var.glue_runtime_package_key}"' in glue_tf
     assert 'module.assets.glue_runtime_package_key' in root_tf
-    assert glue_tf.count('"--extra-py-files"') == 3
+    assert glue_tf.count('"--extra-py-files"') == 2
 
 
 def test_pipeline_runtime_loads_duckdb_lazily_for_local_only() -> None:
@@ -243,38 +235,23 @@ def test_pipeline_runtime_loads_duckdb_lazily_for_local_only() -> None:
     assert "duckdb = get_duckdb_module()" in runtime_py
 
 
-def test_landing_to_bronze_uses_glueetl_instead_of_python_shell() -> None:
-    glue_tf = Path(resolve_project_path("infra/modules/glue/main.tf")).read_text(encoding="utf-8")
-
-    assert 'resource "aws_glue_job" "landing_to_bronze"' in glue_tf
-    landing_job_block = glue_tf.split('resource "aws_glue_job" "landing_to_bronze" {', 1)[1].split('resource "aws_glue_job" "bronze_to_silver" {', 1)[0]
-    assert 'name            = "glueetl"' in landing_job_block
-    assert 'python_version  = "3"' in landing_job_block
-    assert 'name            = "pythonshell"' not in landing_job_block
-    assert '--extra-py-files' in landing_job_block
-    assert '--execution-mode' in landing_job_block
-    assert '--engine' in landing_job_block
-
-
 def test_glue_entrypoints_use_safe_bootstrap_helper() -> None:
-    landing_script = Path(resolve_project_path("src/glue/landing_to_bronze.py")).read_text(encoding="utf-8")
     bronze_script = Path(resolve_project_path("src/glue/bronze_to_silver.py")).read_text(encoding="utf-8")
     gold_script = Path(resolve_project_path("src/glue/silver_to_gold.py")).read_text(encoding="utf-8")
     project_paths = Path(resolve_project_path("src/common/project_paths.py")).read_text(encoding="utf-8")
 
     assert "def ensure_src_package_importable" in project_paths
-    for script in (landing_script, bronze_script, gold_script):
+    for script in (bronze_script, gold_script):
         assert "parents[2]" not in script
         assert "ensure_src_package_importable(__file__)" in script
         assert "candidate / \"src\" / \"__init__.py\"" in script
 
 
 def test_glue_entrypoints_tolerate_unknown_glue_arguments() -> None:
-    landing_script = Path(resolve_project_path("src/glue/landing_to_bronze.py")).read_text(encoding="utf-8")
     bronze_script = Path(resolve_project_path("src/glue/bronze_to_silver.py")).read_text(encoding="utf-8")
     gold_script = Path(resolve_project_path("src/glue/silver_to_gold.py")).read_text(encoding="utf-8")
 
-    for script in (landing_script, bronze_script, gold_script):
+    for script in (bronze_script, gold_script):
         assert "parse_known_args()" in script
         assert "return parser.parse_args()" not in script
 
@@ -293,9 +270,11 @@ def test_state_machine_uses_last_key_segment_for_source_filename_and_exposes_man
 def test_state_machine_preserves_normalized_context_between_glue_tasks() -> None:
     orchestration_tf = Path(resolve_project_path("infra/modules/orchestration/main.tf")).read_text(encoding="utf-8")
 
-    assert 'ResultPath = "$.landing_to_bronze_result"' in orchestration_tf
     assert 'ResultPath = "$.bronze_to_silver_result"' in orchestration_tf
     assert 'ResultPath = "$.silver_to_gold_result"' in orchestration_tf
+    assert 'PromoteLandingToBronze' not in orchestration_tf
+    assert 'JobName = var.landing_to_bronze_job_name' not in orchestration_tf
+    assert '"--source-uri.$"      = "$.source_uri"' in orchestration_tf
     assert '"--business-date.$"   = "$.business_date"' in orchestration_tf
     assert '"--run-id.$"          = "$.run_id"' in orchestration_tf
     assert '"--source-filename.$" = "$.source_filename"' in orchestration_tf

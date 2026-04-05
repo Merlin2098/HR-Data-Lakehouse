@@ -18,11 +18,6 @@ variable "step_functions_role_arn" {
   type        = string
 }
 
-variable "landing_to_bronze_job_name" {
-  description = "Landing-to-bronze Glue job name."
-  type        = string
-}
-
 variable "bronze_to_silver_job_name" {
   description = "Bronze-to-silver Glue job name."
   type        = string

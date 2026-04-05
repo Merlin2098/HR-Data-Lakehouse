@@ -50,7 +50,7 @@ locals {
           "source_filename.$" = "States.ArrayGetItem(States.StringSplit($.detail.object.key, '/'), States.MathAdd(States.ArrayLength(States.StringSplit($.detail.object.key, '/')), -1))"
         }
         ResultPath = "$"
-        Next       = "PromoteLandingToBronze"
+        Next       = "BronzeToSilver"
       }
       NormalizeManualInput = {
         Type = "Pass"
@@ -64,26 +64,12 @@ locals {
           "event_time.$"      = "$.event_time"
         }
         ResultPath = "$"
-        Next       = "PromoteLandingToBronze"
+        Next       = "BronzeToSilver"
       }
       InvalidInput = {
         Type  = "Fail"
         Error = "InvalidPipelineInput"
         Cause = "Expected either an S3 EventBridge payload or a normalized manual execution payload."
-      }
-      PromoteLandingToBronze = {
-        Type     = "Task"
-        Resource = "arn:aws:states:::glue:startJobRun.sync"
-        Parameters = {
-          JobName = var.landing_to_bronze_job_name
-          Arguments = {
-            "--business-date.$"   = "$.business_date"
-            "--source-uri.$"      = "$.source_uri"
-            "--source-filename.$" = "$.source_filename"
-          }
-        }
-        ResultPath = "$.landing_to_bronze_result"
-        Next       = "BronzeToSilver"
       }
       BronzeToSilver = {
         Type     = "Task"
@@ -91,6 +77,7 @@ locals {
         Parameters = {
           JobName = var.bronze_to_silver_job_name
           Arguments = {
+            "--source-uri.$"      = "$.source_uri"
             "--business-date.$"   = "$.business_date"
             "--run-id.$"          = "$.run_id"
             "--source-filename.$" = "$.source_filename"

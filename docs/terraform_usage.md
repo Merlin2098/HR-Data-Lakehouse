@@ -43,6 +43,7 @@ Nota operativa sobre buckets:
 - Terraform crea placeholders `.keep` en los prefijos medallion operativos del bucket `data_lake`
 - esos placeholders solo hacen visible la estructura base y no reemplazan la carga de datos reales
 - las rutas fisicas curadas en AWS estan normalizadas como `silver/hr_employees/` y `gold/hr_attrition/`
+- `landing` funciona como drop zone y trigger; no existe una copia operativa adicional en `raw`
 
 ## Trigger y retry del pipeline
 
@@ -51,11 +52,11 @@ Trigger automatico en AWS:
 - subir un CSV a `s3://<data_lake_bucket>/bronze/hr_attrition/landing/<archivo>.csv`
 - EventBridge detecta `Object Created`
 - Step Functions normaliza el payload y ejecuta:
-  - `landing_to_bronze`
   - `bronze_to_silver`
   - `silver_to_gold`
   - `validate_catalog`
 - cada task Glue conserva `business_date`, `run_id` y `source_filename` en el payload raiz y adjunta su resultado en subcampos dedicados
+- `bronze_to_silver` procesa directamente el objeto exacto de `landing` que disparo el evento
 
 Retry manual sin reupload:
 
@@ -85,6 +86,7 @@ Notas operativas:
 - si omites `--run-id`, el helper genera uno nuevo
 - si omites `--event-time`, el helper usa el timestamp UTC actual
 - no se vuelve a subir el archivo; el objeto debe existir previamente en `landing`
+- el retry manual tampoco depende de un prefijo `raw`
 
 ## Opciones para autenticacion local
 

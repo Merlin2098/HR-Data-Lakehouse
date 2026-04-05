@@ -12,10 +12,6 @@ locals {
   }
 
   assets = {
-    landing_to_bronze_script = {
-      key    = "glue/landing_to_bronze.py"
-      source = "${path.module}/../../../src/glue/landing_to_bronze.py"
-    }
     bronze_to_silver_script = {
       key    = "glue/bronze_to_silver.py"
       source = "${path.module}/../../../src/glue/bronze_to_silver.py"

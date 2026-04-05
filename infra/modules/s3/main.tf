@@ -7,7 +7,6 @@ locals {
 
   medallion_prefix_placeholders = {
     bronze_landing = "bronze/hr_attrition/landing/.keep"
-    bronze_raw     = "bronze/hr_attrition/raw/.keep"
     silver_dataset = "silver/hr_employees/.keep"
     gold_dataset   = "gold/hr_attrition/.keep"
   }

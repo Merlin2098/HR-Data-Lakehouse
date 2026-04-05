@@ -61,26 +61,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-uri", dest="target_uri", help="Alias for --target when running in AWS.")
     parser.add_argument("--execution-mode", choices=["local", "aws"], help="Execution mode override.")
     parser.add_argument("--engine", choices=["duckdb", "glue_spark"], help="Execution engine override.")
-    parser.add_argument("--business-date", help="Optional business date in ISO format. Used by AWS raw bronze paths.")
-    parser.add_argument("--source-filename", help="Expected raw source filename for AWS bronze ingestion.")
+    parser.add_argument("--business-date", help="Optional business date in ISO format used for technical metadata.")
+    parser.add_argument("--source-filename", help="Expected landing source filename for AWS event-driven ingestion.")
     parser.add_argument("--run-id", help="Explicit run identifier.")
     parser.add_argument("--processed-at-utc", help="Explicit UTC processing timestamp.")
     args, _ = parser.parse_known_args()
     return args
 
 
-def resolve_bronze_source_uri(source_uri: str, ingestion_date_value: str | None, source_filename: str) -> str:
+def resolve_bronze_source_uri(source_uri: str, source_filename: str) -> str:
     if not source_uri.endswith("/"):
         return source_uri
 
-    ingestion_date = parse_ingestion_date(ingestion_date_value).isoformat()
     if is_s3_uri(source_uri):
         without_suffix = source_uri.rstrip("/")
         bucket_and_prefix = without_suffix.removeprefix("s3://")
         bucket, _, prefix = bucket_and_prefix.partition("/")
-        return build_s3_uri(bucket, f"{prefix}/ingestion_date={ingestion_date}/{source_filename}")
+        return build_s3_uri(bucket, f"{prefix}/{source_filename}")
 
-    return str(Path(source_uri) / f"ingestion_date={ingestion_date}" / source_filename)
+    return str(Path(source_uri) / source_filename)
 
 
 def run_pipeline(
@@ -118,7 +117,7 @@ def run_pipeline(
     resolved_source_filename = normalize_source_filename(
         str(source_filename or runtime_variables.get("source_filename") or source_file_name(context.source_uri))
     )
-    resolved_source_uri = resolve_bronze_source_uri(context.source_uri, business_date_value, resolved_source_filename)
+    resolved_source_uri = resolve_bronze_source_uri(context.source_uri, resolved_source_filename)
 
     if resolved_source_uri != context.source_uri:
         context = load_pipeline_context(
