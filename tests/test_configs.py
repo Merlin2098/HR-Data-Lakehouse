@@ -166,6 +166,19 @@ def test_observability_topic_accepts_budgets_and_supports_email_subscriptions() 
     assert 'variable = "aws:SourceAccount"' in kms_tf
 
 
+def test_step_functions_role_can_run_athena_validation_against_curated_data_lake_prefixes() -> None:
+    iam_tf = Path(resolve_project_path("infra/modules/iam/main.tf")).read_text(encoding="utf-8")
+
+    assert 'sid    = "AthenaDataLakeRead"' in iam_tf
+    assert 'sid    = "AthenaCuratedObjectRead"' in iam_tf
+    assert 'var.data_lake_bucket_arn' in iam_tf
+    assert '"s3:ListBucket"' in iam_tf
+    assert '"s3:GetBucketLocation"' in iam_tf
+    assert '"s3:GetObject"' in iam_tf
+    assert '"${var.data_lake_bucket_arn}/silver/*"' in iam_tf
+    assert '"${var.data_lake_bucket_arn}/gold/*"' in iam_tf
+
+
 def test_github_actions_workflow_runs_on_main_and_targets_dev() -> None:
     workflow = Path(resolve_project_path(".github/workflows/terraform.yml")).read_text(encoding="utf-8")
 

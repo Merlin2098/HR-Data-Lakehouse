@@ -57,6 +57,7 @@ Automatic AWS trigger:
   - `validate_catalog`
 - each Glue task preserves `business_date`, `run_id`, and `source_filename` at the root payload and attaches its result in dedicated subfields
 - `bronze_to_silver` processes the exact landing object that triggered the event
+- the final Athena validation also depends on the Step Functions role having Athena permissions, read-only access to curated prefixes in `data_lake`, and write access to `athena-results`
 
 Manual retry without re-upload:
 

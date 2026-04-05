@@ -160,6 +160,28 @@ data "aws_iam_policy_document" "step_functions_runtime" {
   }
 
   statement {
+    sid    = "AthenaDataLakeRead"
+    effect = "Allow"
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [var.data_lake_bucket_arn]
+  }
+
+  statement {
+    sid    = "AthenaCuratedObjectRead"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+    ]
+    resources = [
+      "${var.data_lake_bucket_arn}/silver/*",
+      "${var.data_lake_bucket_arn}/gold/*",
+    ]
+  }
+
+  statement {
     sid    = "StepFunctionsLoggingAndKms"
     effect = "Allow"
     actions = [
