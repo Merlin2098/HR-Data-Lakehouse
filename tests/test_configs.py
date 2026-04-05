@@ -206,6 +206,39 @@ def test_scripts_bucket_uses_aes256_and_explicit_reader_policy() -> None:
     assert '"arn:aws:iam::184670914470:user/admin2"' in dev_tfvars
 
 
+def test_catalog_exposes_quicksight_bi_view_over_gold() -> None:
+    catalog_tf = Path(resolve_project_path("infra/modules/catalog/main.tf")).read_text(encoding="utf-8")
+    catalog_outputs = Path(resolve_project_path("infra/modules/catalog/outputs.tf")).read_text(encoding="utf-8")
+    root_outputs = Path(resolve_project_path("infra/outputs.tf")).read_text(encoding="utf-8")
+
+    assert 'quicksight_view_name = "vw_quicksight_hr_attrition"' in catalog_tf
+    assert 'resource "aws_glue_catalog_table" "quicksight"' in catalog_tf
+    assert 'table_type    = "VIRTUAL_VIEW"' in catalog_tf
+    assert 'comment     = "QuickSight-facing Athena view over gold_hr_attrition_fact"' in catalog_tf
+    assert 'FROM "${var.database_name}"."${local.gold_table_name}"' in catalog_tf
+    assert 'output "quicksight_view_name"' in catalog_outputs
+    assert 'module.catalog.quicksight_view_name' in root_outputs
+
+
+def test_s3_module_supports_optional_quicksight_access_to_gold_and_athena_results() -> None:
+    s3_tf = Path(resolve_project_path("infra/modules/s3/main.tf")).read_text(encoding="utf-8")
+    s3_vars = Path(resolve_project_path("infra/modules/s3/variables.tf")).read_text(encoding="utf-8")
+    root_tf = Path(resolve_project_path("infra/main.tf")).read_text(encoding="utf-8")
+    root_vars = Path(resolve_project_path("infra/variables.tf")).read_text(encoding="utf-8")
+    dev_tfvars = Path(resolve_project_path("infra/env/dev.tfvars")).read_text(encoding="utf-8")
+
+    assert 'variable "quicksight_principal_arns"' in s3_vars
+    assert 'variable "quicksight_principal_arns"' in root_vars
+    assert 'quicksight_principal_arns = var.quicksight_principal_arns' in root_tf
+    assert 'resource "aws_s3_bucket_policy" "data_lake_quicksight"' in s3_tf
+    assert 'resource "aws_s3_bucket_policy" "athena_results_quicksight"' in s3_tf
+    assert '"${aws_s3_bucket.data_lake.arn}/gold/*"' in s3_tf
+    assert '"${aws_s3_bucket.athena_results.arn}/query-results/*"' in s3_tf
+    assert '"s3:GetObject"' in s3_tf
+    assert '"s3:PutObject"' in s3_tf
+    assert 'quicksight_principal_arns = []' in dev_tfvars
+
+
 def test_data_lake_defines_medallion_prefix_placeholders() -> None:
     s3_tf = Path(resolve_project_path("infra/modules/s3/main.tf")).read_text(encoding="utf-8")
     resource_loader = Path(resolve_project_path("src/common/resource_loader.py")).read_text(encoding="utf-8")

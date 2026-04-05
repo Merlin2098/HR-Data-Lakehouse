@@ -40,6 +40,17 @@ def test_implementation_doc_describes_current_validation_status() -> None:
     assert "IMPLEMENTED IN CODE, NOT VALIDATED IN AWS" not in implementation_doc
 
 
+def test_docs_describe_quicksight_direct_query_over_bi_view() -> None:
+    terraform_usage = read_text("docs/terraform_usage.md")
+    overview_doc = read_text("docs/etl_architecture_overview.md")
+
+    assert "QuickSight in `direct query` mode over Athena" in terraform_usage
+    assert "`vw_quicksight_hr_attrition`" in terraform_usage
+    assert "not using the CSV files under `athena-results` as an analytical layer" in terraform_usage
+    assert "QuickSight should connect to the stable view `vw_quicksight_hr_attrition`" in overview_doc
+    assert "without a manual SPICE refresh" in overview_doc
+
+
 def test_tinker_project_metadata_and_context_graph_reflect_repo_layout() -> None:
     metadata = load_yaml_file(resolve_project_path(".tinker/project_metadata.yaml"))
     context_graph = json.loads(read_text(".tinker/context_graph.json"))

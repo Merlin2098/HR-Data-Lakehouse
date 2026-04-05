@@ -59,6 +59,28 @@ Automatic AWS trigger:
 - `bronze_to_silver` processes the exact landing object that triggered the event
 - the final Athena validation also depends on the Step Functions role having Athena permissions, read-only access to curated prefixes in `data_lake`, and write access to `athena-results`
 
+## QuickSight Integration
+
+The recommended low-cost integration is:
+
+- QuickSight in `direct query` mode over Athena
+- using the Athena-facing view `vw_quicksight_hr_attrition`
+- not using the CSV files under `athena-results` as an analytical layer
+
+Terraform now prepares the technical side for that pattern:
+
+- a QuickSight-facing Athena view over `gold_hr_attrition_fact`
+- optional S3 bucket policies driven by `quicksight_principal_arns`
+- read-only access to `gold/*` in `data_lake`
+- read/write access to `query-results/*` in `athena-results`
+
+Operational notes:
+
+- keep `quicksight_principal_arns = []` until you know the exact QuickSight principal ARN to authorize
+- when QuickSight uses `direct query`, new pipeline runs and reruns become visible automatically through Athena
+- no SPICE refresh is required in that mode
+- if you change the schema of the view, QuickSight dataset mappings may need manual adjustment
+
 Manual retry without re-upload:
 
 - get the state machine ARN:

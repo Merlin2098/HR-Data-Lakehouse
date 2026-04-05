@@ -42,6 +42,7 @@ module "s3" {
     ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"],
     var.scripts_bucket_reader_arns,
   )
+  quicksight_principal_arns = var.quicksight_principal_arns
   common_tags = local.resource_tags
 }
 

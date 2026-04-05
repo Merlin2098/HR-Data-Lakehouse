@@ -46,6 +46,79 @@ data "aws_iam_policy_document" "scripts_bucket_readers" {
   }
 }
 
+data "aws_iam_policy_document" "quicksight_data_lake_readers" {
+  count = length(var.quicksight_principal_arns) > 0 ? 1 : 0
+
+  statement {
+    sid    = "AllowQuickSightDataLakeListing"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = var.quicksight_principal_arns
+    }
+
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [aws_s3_bucket.data_lake.arn]
+  }
+
+  statement {
+    sid    = "AllowQuickSightGoldReads"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = var.quicksight_principal_arns
+    }
+
+    actions = ["s3:GetObject"]
+    resources = [
+      "${aws_s3_bucket.data_lake.arn}/gold/*",
+    ]
+  }
+}
+
+data "aws_iam_policy_document" "quicksight_athena_results_readers" {
+  count = length(var.quicksight_principal_arns) > 0 ? 1 : 0
+
+  statement {
+    sid    = "AllowQuickSightAthenaResultsListing"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = var.quicksight_principal_arns
+    }
+
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [aws_s3_bucket.athena_results.arn]
+  }
+
+  statement {
+    sid    = "AllowQuickSightAthenaResultsObjects"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = var.quicksight_principal_arns
+    }
+
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+    ]
+    resources = [
+      "${aws_s3_bucket.athena_results.arn}/query-results/*",
+    ]
+  }
+}
+
 resource "aws_s3_bucket" "data_lake" {
   bucket = local.bucket_names.data_lake
   tags   = merge(var.common_tags, { Layer = "data-lake" })
@@ -132,6 +205,18 @@ resource "aws_s3_object" "data_lake_prefix_placeholders" {
 resource "aws_s3_bucket_policy" "scripts" {
   bucket = aws_s3_bucket.scripts.id
   policy = data.aws_iam_policy_document.scripts_bucket_readers.json
+}
+
+resource "aws_s3_bucket_policy" "data_lake_quicksight" {
+  count  = length(var.quicksight_principal_arns) > 0 ? 1 : 0
+  bucket = aws_s3_bucket.data_lake.id
+  policy = data.aws_iam_policy_document.quicksight_data_lake_readers[0].json
+}
+
+resource "aws_s3_bucket_policy" "athena_results_quicksight" {
+  count  = length(var.quicksight_principal_arns) > 0 ? 1 : 0
+  bucket = aws_s3_bucket.athena_results.id
+  policy = data.aws_iam_policy_document.quicksight_athena_results_readers[0].json
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "athena_results" {

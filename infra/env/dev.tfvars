@@ -9,6 +9,7 @@ alert_email_endpoints    = []
 scripts_bucket_reader_arns = [
   "arn:aws:iam::184670914470:user/admin2",
 ]
+quicksight_principal_arns = []
 landing_prefix        = "bronze/hr_attrition/landing/"
 landing_suffix        = ".csv"
 year_projection_range = "2024,2035"

@@ -33,6 +33,11 @@ output "athena_workgroup_name" {
   value       = module.athena.workgroup_name
 }
 
+output "quicksight_view_name" {
+  description = "Athena view intended for QuickSight direct-query datasets."
+  value       = module.catalog.quicksight_view_name
+}
+
 output "catalog_database_name" {
   description = "Glue Catalog database name."
   value       = module.catalog.database_name

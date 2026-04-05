@@ -245,6 +245,12 @@ Responsibilities:
 - query silver and gold
 - execute a final validation step at the end of the state machine
 
+QuickSight consumption pattern:
+
+- the recommended BI integration is QuickSight in `direct query` mode over Athena
+- QuickSight should connect to the stable view `vw_quicksight_hr_attrition`
+- because `gold` is partitioned and exposed through partition projection, new runs and reruns become visible without a manual SPICE refresh
+
 #### CloudWatch and SNS
 
 These are used for baseline observability.
