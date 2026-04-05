@@ -86,6 +86,7 @@ Operational notes:
 - the export is a full overwrite snapshot, not a versioned history
 - the BI snapshot does not depend on Athena query-result CSVs
 - the BI snapshot is produced automatically after `silver_to_gold`
+- the snapshot contains only the `business_date` processed by the current run
 - new pipeline runs and reruns replace the same stable Parquet object
 
 ## Future Features
@@ -114,7 +115,7 @@ $env:AWS_PROFILE="admin2"
 $stateMachineArn = terraform -chdir=infra output -raw state_machine_arn
 .\.venv\Scripts\python.exe src\glue\retry_state_machine.py `
   --state-machine-arn $stateMachineArn `
-  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition2.csv" `
+  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition3.csv" `
   --business-date 2026-04-04
 ```
 

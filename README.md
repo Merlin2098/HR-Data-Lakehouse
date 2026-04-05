@@ -51,7 +51,7 @@ The local pipeline uses:
 - `src/glue/gold_to_bi_export.py` for the BI snapshot stage
 - `src/glue/run_local_pipeline.py` for the full end-to-end local run
 
-By default, the local pipeline reads `data/HR-Employee-Attrition2.csv`, writes silver as a parquet dataset under `data/output/silver/hr_employees/`, writes gold as a partitioned parquet dataset under `data/output/gold/hr_attrition/` using Hive-style folders such as `.../year=2026/month=4/day=3/`, and exports a stable BI snapshot to `data/output/bi/hr_attrition_snapshot.parquet`.
+By default, the local pipeline reads `data/HR-Employee-Attrition3.csv`, writes silver as a parquet dataset under `data/output/silver/hr_employees/`, writes gold as a partitioned parquet dataset under `data/output/gold/hr_attrition/` using Hive-style folders such as `.../year=2026/month=4/day=3/`, and exports a stable BI snapshot to `data/output/bi/hr_attrition_snapshot.parquet`.
 Gold uses a daily partition overwrite model, so each run refreshes only the partition for that processing day instead of rewriting the full dataset.
 
 Both silver and gold now include technical metadata to simulate production-style lineage:
@@ -127,7 +127,7 @@ $env:AWS_PROFILE="admin2"
 $stateMachineArn = terraform -chdir=infra output -raw state_machine_arn
 .\.venv\Scripts\python.exe src\glue\retry_state_machine.py `
   --state-machine-arn $stateMachineArn `
-  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition2.csv" `
+  --source-uri "s3://hr-lakehouse-dev-184670914470-us-east-1-data-lake/bronze/hr_attrition/landing/HR-Employee-Attrition3.csv" `
   --business-date 2026-04-04
 ```
 
@@ -138,7 +138,7 @@ The current recommended BI consumption path is to download the exported Parquet 
 
 `s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`
 
-and open it locally in the desktop visualization tool of your choice. Live Athena-driven connectors such as QuickSight, Power BI ODBC, or Tableau live queries are treated as future features rather than part of the active runtime path.
+That snapshot represents the `business_date` processed by the most recent successful run, and it can be opened locally in the desktop visualization tool of your choice. Live Athena-driven connectors such as QuickSight, Power BI ODBC, or Tableau live queries are treated as future features rather than part of the active runtime path.
 
 Terraform local usage is documented in [terraform_usage.md](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/docs/terraform_usage.md).
 

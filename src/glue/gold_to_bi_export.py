@@ -31,6 +31,7 @@ from src.common.pipeline_runtime import (
     load_pipeline_context,
     parse_ingestion_date,
     run_parquet_to_parquet_pipeline,
+    sql_string_literal,
 )
 
 
@@ -73,7 +74,7 @@ def run_pipeline(
     run_id: str | None = None,
     processed_at_utc: str | None = None,
 ) -> dict[str, object]:
-    business_date = parse_ingestion_date(business_date_value) if business_date_value else None
+    business_date = parse_ingestion_date(business_date_value)
     runtime_variables = build_runtime_variables(
         business_date=business_date,
         run_id=run_id,
@@ -96,10 +97,15 @@ def run_pipeline(
 
     result = run_parquet_to_parquet_pipeline(
         context,
+        sql_variables={
+            "ingestion_date": sql_string_literal(business_date.isoformat()),
+            "year": business_date.year,
+            "month": business_date.month,
+            "day": business_date.day,
+        },
         quality_context={},
     )
-    if business_date is not None:
-        result["business_date"] = business_date.isoformat()
+    result["business_date"] = business_date.isoformat()
     result["export_run_id"] = resolved_run_id
     result["export_processed_at_utc"] = resolved_processed_at_utc
     return result

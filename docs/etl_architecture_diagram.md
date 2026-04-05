@@ -72,7 +72,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    CSV["data/HR-Employee-Attrition2.csv"] --> R["run_local_pipeline.py"]
+    CSV["data/HR-Employee-Attrition3.csv"] --> R["run_local_pipeline.py"]
     R --> B2S["bronze_to_silver.py"]
     B2S --> SIL["data/output/silver/hr_employees/"]
     SIL --> S2G["silver_to_gold.py"]

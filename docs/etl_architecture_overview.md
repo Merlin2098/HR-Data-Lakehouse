@@ -35,7 +35,7 @@ Business logic does not live hardcoded in Python. It is split across:
 
 This is the arrival zone for the source file and the pipeline trigger point in AWS.
 
-- Locally, the base dataset is [HR-Employee-Attrition2.csv](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/data/HR-Employee-Attrition2.csv)
+- Locally, the base dataset is [HR-Employee-Attrition3.csv](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/data/HR-Employee-Attrition3.csv)
 - In AWS, the file lands in the shared data lake bucket under the prefix `bronze/hr_attrition/landing/`
 - The pipeline trigger is based on the creation of a CSV object in that prefix
 
@@ -123,6 +123,7 @@ The `gold_to_bi_export` job:
 
 - reads the curated `gold` Parquet dataset
 - preserves the current analytical schema as-is
+- filters the export to the `business_date` processed by the current run
 - writes a single stable Parquet file for local desktop BI tools
 
 Logical dataset:

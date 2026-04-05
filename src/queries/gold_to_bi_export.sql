@@ -26,3 +26,6 @@ SELECT
   run_id,
   processed_at_utc
 FROM gold_hr_attrition_fact
+WHERE year = {{year}}
+  AND month = {{month}}
+  AND day = {{day}}

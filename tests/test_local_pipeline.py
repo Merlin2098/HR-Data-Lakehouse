@@ -93,17 +93,17 @@ def directory_partitioning():
 
 
 def test_bronze_to_silver_preserves_exact_landing_object_uri_in_aws_mode() -> None:
-    source_uri = "s3://demo-lake/bronze/hr_attrition/landing/HR-Employee-Attrition2.csv"
+    source_uri = "s3://demo-lake/bronze/hr_attrition/landing/HR-Employee-Attrition3.csv"
 
-    assert resolve_bronze_source_uri(source_uri, "HR-Employee-Attrition2.csv") == source_uri
+    assert resolve_bronze_source_uri(source_uri, "HR-Employee-Attrition3.csv") == source_uri
 
 
 def test_bronze_to_silver_can_build_landing_object_uri_from_prefix() -> None:
     source_uri = "s3://demo-lake/bronze/hr_attrition/landing/"
 
     assert (
-        resolve_bronze_source_uri(source_uri, "HR-Employee-Attrition2.csv")
-        == "s3://demo-lake/bronze/hr_attrition/landing/HR-Employee-Attrition2.csv"
+        resolve_bronze_source_uri(source_uri, "HR-Employee-Attrition3.csv")
+        == "s3://demo-lake/bronze/hr_attrition/landing/HR-Employee-Attrition3.csv"
     )
 
 
@@ -113,7 +113,7 @@ def test_bronze_to_silver_writes_expected_dataset_parquet() -> None:
 
     result = run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition2.csv"),
+        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
         target_override=output_path,
     )
 
@@ -130,7 +130,7 @@ def test_bronze_to_silver_writes_expected_dataset_parquet() -> None:
     assert first_row["job_role"] == "sales executive"
     assert isinstance(first_row["over_time"], bool)
     assert isinstance(first_row["attrition"], bool)
-    assert first_row["source_file"] == "HR-Employee-Attrition2.csv"
+    assert first_row["source_file"] == "HR-Employee-Attrition3.csv"
     assert first_row["run_id"]
     assert first_row["processed_at_utc"] is not None
 
@@ -142,7 +142,7 @@ def test_silver_to_gold_writes_partitioned_parquet() -> None:
 
     run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition2.csv"),
+        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
         target_override=silver_output,
     )
     result = run_silver_to_gold(
@@ -167,7 +167,7 @@ def test_silver_to_gold_writes_partitioned_parquet() -> None:
     assert first_row["year"] == 2026
     assert first_row["month"] == 4
     assert first_row["day"] == 3
-    assert first_row["source_file"] == "HR-Employee-Attrition2.csv"
+    assert first_row["source_file"] == "HR-Employee-Attrition3.csv"
     assert first_row["run_id"]
     assert first_row["processed_at_utc"] is not None
 
@@ -180,7 +180,7 @@ def test_gold_to_bi_export_writes_single_parquet_snapshot() -> None:
 
     run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition2.csv"),
+        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
         target_override=silver_output,
     )
     gold_result = run_silver_to_gold(
@@ -206,6 +206,47 @@ def test_gold_to_bi_export_writes_single_parquet_snapshot() -> None:
     assert table.column_names == EXPECTED_BI_COLUMNS
     assert first_row["ingestion_date"].isoformat() == "2026-04-03"
     assert first_row["employee_id"] > 0
+    assert {row["ingestion_date"].isoformat() for row in table.to_pylist()} == {"2026-04-03"}
+
+
+def test_gold_to_bi_export_filters_to_requested_business_date_when_gold_has_history() -> None:
+    test_root = unique_test_root("gold_to_bi_export_history")
+    silver_output = test_root / "silver" / "hr_employees"
+    gold_output = test_root / "gold" / "hr_attrition"
+    bi_output = test_root / "bi" / "hr_attrition_snapshot.parquet"
+
+    run_bronze_to_silver(
+        config_path=resolve_project_path("src/configs/transformations.yaml"),
+        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
+        target_override=silver_output,
+    )
+    run_silver_to_gold(
+        config_path=resolve_project_path("src/configs/transformations.yaml"),
+        source_override=silver_output,
+        target_override=gold_output,
+        ingestion_date_value="2026-04-02",
+    )
+    gold_result = run_silver_to_gold(
+        config_path=resolve_project_path("src/configs/transformations.yaml"),
+        source_override=silver_output,
+        target_override=gold_output,
+        ingestion_date_value="2026-04-03",
+    )
+
+    result = run_gold_to_bi_export(
+        config_path=resolve_project_path("src/configs/transformations.yaml"),
+        source_override=gold_result["target_uri"],
+        target_override=bi_output,
+        business_date_value="2026-04-03",
+    )
+
+    table = ds.dataset(bi_output, format="parquet").to_table()
+    ingestion_dates = {row["ingestion_date"].isoformat() for row in table.to_pylist()}
+    employee_ids = table.column("employee_id").to_pylist()
+
+    assert result["business_date"] == "2026-04-03"
+    assert ingestion_dates == {"2026-04-03"}
+    assert len(employee_ids) == len(set(employee_ids))
 
 
 def test_full_runner_executes_bronze_to_gold_end_to_end() -> None:
@@ -216,7 +257,7 @@ def test_full_runner_executes_bronze_to_gold_end_to_end() -> None:
 
     result = run_local_pipeline(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition2.csv"),
+        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
         silver_target_override=silver_output,
         gold_target_override=gold_output,
         bi_target_override=bi_output,
@@ -247,7 +288,7 @@ def test_full_runner_defaults_to_today_when_ingestion_date_is_not_provided() -> 
 
     result = run_local_pipeline(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition2.csv"),
+        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
         silver_target_override=silver_output,
         gold_target_override=gold_output,
     )
@@ -264,7 +305,7 @@ def test_gold_overwrite_partition_replaces_only_the_current_day() -> None:
 
     run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition2.csv"),
+        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
         target_override=silver_output,
     )
     run_silver_to_gold(

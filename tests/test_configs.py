@@ -66,7 +66,7 @@ def test_transformations_config_declares_bronze_to_silver_pipeline() -> None:
     assert config["defaults"]["engines"] == {"local": "duckdb", "aws": "glue_spark"}
     pipeline = config["pipelines"]["bronze_to_silver"]
 
-    assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition2.csv"
+    assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition3.csv"
     assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/bronze/hr_attrition/landing/"
     assert pipeline["target"]["format"] == "parquet"
     assert pipeline["target"]["layout"] == "dataset"
