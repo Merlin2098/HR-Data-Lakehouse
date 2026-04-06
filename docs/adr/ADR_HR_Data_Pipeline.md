@@ -1,167 +1,187 @@
-# ADR-001: HR Attrition Data Pipeline (AWS, S3 + Glue + Athena + Terraform)
+# ADR-Architecture: Lakehouse Architecture Baseline
 
-- Status: Accepted
+- Short Name: `lakehouse-architecture-baseline`
+
+- Status: Accepted and implemented
 - Date: 2026-03-20
+- Last Reviewed: 2026-04-05
 - Decision Makers: Data Engineering
-- Tags: data-lake, aws, s3, glue, athena, parquet, terraform, analytics
+- Tags: aws, s3, glue, step-functions, eventbridge, athena, parquet, terraform, lakehouse
 
 ---
 
 ## Context
 
-We need to design a data system that supports analysis of employee attrition and its related factors such as salary, tenure, satisfaction, working conditions, and organizational variables.
+The project needs a reproducible and low-operations analytics pipeline for HR attrition data that can:
 
-The input dataset is IBM HR Attrition (CSV) with multiple employee-level feature columns.
+- ingest a source CSV from S3
+- normalize and type the data for analytical use
+- publish a curated gold dataset optimized for Athena
+- export a stable Parquet snapshot for local BI consumption
+- be deployed and maintained through Terraform
 
-The goal is to build an AWS pipeline that:
+The input dataset is the IBM HR Attrition CSV, and the implementation needs to work in two execution modes:
 
-- preserves the original source
-- applies cleaning and typing
-- models the data for analysis
-- allows efficient Athena queries
-- is reproducible through Terraform
+- `local`, using DuckDB for rapid validation
+- `aws`, using Glue Spark for production-style execution
+
+The architecture also needs baseline observability, encryption, event-driven orchestration, and a controlled contract between transformations and datasets.
 
 ---
 
 ## Decision
 
-An AWS data lake architecture is adopted with three layers:
+The project adopts a config-driven lakehouse architecture with the current runtime flow:
 
-### 1. Bronze
+```text
+Landing -> Silver -> Gold -> BI Export
+```
 
-- stores original data without transformation
-- format: CSV
-- location: S3
+The active AWS path is:
+
+```text
+S3 Landing -> EventBridge -> Step Functions -> Glue -> Athena validation
+```
+
+The implementation is intentionally split into:
+
+- `YAML` for pipeline definitions
+- `SQL` for transformations
+- `Python` for orchestration, validation, and materialization
+- `Terraform` for infrastructure and deployment
+
+---
+
+## Current Architecture
+
+### 1. Landing
+
+Landing is the ingress and trigger zone.
+
+- In AWS, source files land under `bronze/hr_attrition/landing/`
+- The same uploaded object is used directly by `bronze_to_silver`
+- There is no longer a separate operational `raw` promotion step
+
+This keeps the event-driven path simple and avoids duplicating the same CSV without transformation value.
 
 ### 2. Silver
 
-- cleaning, normalization, and typing
-- selection of relevant columns
-- conversion to Parquet
-- schema validations
+Silver is the first curated layer.
+
+The `bronze_to_silver` job:
+
+- reads the exact landing object
+- cleans and normalizes strings
+- casts values to typed analytical columns
+- converts `Yes/No` style fields into booleans
+- drops unused fields
+- writes a Parquet dataset to `silver/hr_employees/`
+
+Technical lineage metadata included in silver:
+
+- `source_file`
+- `run_id`
+- `processed_at_utc`
+
+Write policy:
+
+- `overwrite_full`
 
 ### 3. Gold
 
-- optimized analytical table (extended fact table)
-- semantic enrichment (Likert labels)
-- partitioning by ingestion date
-- Parquet format optimized for Athena
+Gold is the analytical layer.
 
----
+The `silver_to_gold` job:
 
-## Architecture Overview
+- reads the silver Parquet dataset
+- adds analytical enrichments and label mappings
+- appends ingestion metadata
+- writes partitioned Parquet to `gold/hr_attrition/`
 
-Flow:
+Partition scheme:
+
+- `year`
+- `month`
+- `day`
+
+Technical metadata included in gold:
+
+- `ingestion_date`
+- `year`
+- `month`
+- `day`
+- `source_file`
+- `run_id`
+- `processed_at_utc`
+
+Write policy:
+
+- `overwrite_partition`
+
+### 4. BI Export
+
+The project now includes an explicit BI export stage.
+
+The `gold_to_bi_export` job:
+
+- reads the curated `gold_hr_attrition_fact` dataset
+- filters the export to the `business_date` of the current run
+- materializes a single stable Parquet snapshot
+- overwrites the same target on every successful execution
+
+Current AWS target:
 
 ```text
-Dataset (CSV)
-    ↓
-S3 Bronze / Landing
-    ↓
-AWS Glue
-    ↓
-S3 Silver (typed Parquet)
-    ↓
-AWS Glue (final transformation)
-    ↓
-S3 Gold (analytical Parquet)
-    ↓
-Amazon Athena
+s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet
 ```
 
----
-
-## Bronze Layer
-
-- immutable source data
-- no validation or transformation
-- example:
+Current local target:
 
 ```text
-s3://hr-data-lake/bronze/hr_attrition/landing/data.csv
+data/output/bi/hr_attrition_snapshot.parquet
 ```
 
----
-
-## Silver Layer
-
-### Transformations
-
-- type casting
-- column normalization (`snake_case`)
-- value normalization (`lowercase`, `trim`)
-- removal of irrelevant columns
-- schema validations
-
-### Schema
-
-- employee_number: integer
-- department: string
-- job_role: string
-- job_level: integer
-- over_time: boolean
-- monthly_income: decimal(12,2)
-- percent_salary_hike: integer
-- years_at_company: integer
-- years_since_last_promotion: integer
-- total_working_years: integer
-- job_satisfaction: integer
-- environment_satisfaction: integer
-- relationship_satisfaction: integer
-- work_life_balance: integer
-- attrition: boolean
-
-Format: Parquet
+This snapshot is the current recommended BI delivery mechanism for local desktop tools.
 
 ---
 
-## Gold Layer
+## Orchestration and Runtime
 
-### Table: `gold_hr_attrition_fact`
+### Event-driven execution in AWS
 
-Includes:
+The AWS pipeline is triggered when a CSV is created in the landing prefix.
 
-- metrics
-- analytical attributes
-- numeric and semantic representation
+Execution flow:
 
-### Schema
+1. S3 receives the object in `bronze/hr_attrition/landing/`
+2. EventBridge filters the event
+3. Step Functions starts the state machine
+4. Step Functions normalizes the payload and preserves:
+   - `bucket_name`
+   - `object_key`
+   - `source_uri`
+   - `source_filename`
+   - `business_date`
+   - `run_id`
+   - `event_time`
+5. The state machine executes:
+   - `bronze_to_silver`
+   - `silver_to_gold`
+   - `gold_to_bi_export`
+   - `validate_catalog`
 
-- employee_id: integer
-- year: integer
-- month: integer
-- day: integer
-- department: string
-- job_role: string
-- job_level: integer
-- attrition: boolean
-- monthly_income: decimal(12,2)
-- percent_salary_hike: integer
-- years_at_company: integer
-- years_since_last_promotion: integer
-- total_working_years: integer
-- over_time: boolean
-- job_satisfaction_score: integer
-- environment_satisfaction_score: integer
-- relationship_satisfaction_score: integer
-- work_life_balance_score: integer
-- job_satisfaction_label: string
-- environment_satisfaction_label: string
-- relationship_satisfaction_label: string
-- work_life_balance_label: string
+### Validation strategy
 
-### Likert Mapping
+Dataset quality is enforced through contracts and runtime checks.
 
-1 → low  
-2 → medium  
-3 → high  
-4 → very_high
+The pipeline validates:
 
-### Partitioning
+- expected output columns
+- primary keys where declared
+- nullability and value-domain rules
+- partition coherence for date-partitioned outputs
 
-- year
-- month
-- day
+The final state-machine step also validates the Athena-facing gold table through a synchronous query execution.
 
 ---
 
@@ -169,44 +189,80 @@ Includes:
 
 ### Amazon S3
 
-- scalable data lake
-- low cost
+Chosen for:
+
+- durable and low-cost lake storage
+- clean separation between landing, curated, and exported data
+- native interoperability with Glue and Athena
 
 ### AWS Glue
 
-- serverless ETL
-- integration with Data Catalog
+Chosen for:
 
-### Amazon Athena
+- serverless Spark execution
+- direct integration with S3 and the Glue Catalog
+- suitability for batch ETL without cluster management
 
-- serverless querying over S3
-- ideal for exploratory analytics
+### AWS Step Functions
+
+Chosen for:
+
+- explicit orchestration of ETL stages
+- payload normalization and propagation
+- synchronous Glue and Athena coordination
+- operational visibility into end-to-end execution
+
+### Amazon EventBridge
+
+Chosen for:
+
+- event-driven start from S3 object creation
+- filtering by prefix and suffix before orchestration
+
+### AWS Glue Catalog and Athena
+
+Chosen for:
+
+- serverless SQL access to curated data
+- lightweight validation of analytical outputs
+- compatibility with future BI integrations
 
 ### Parquet
 
-- columnar format
-- better performance and compression
+Chosen for:
+
+- columnar storage
+- better compression
+- lower scan costs in Athena
+- good compatibility with desktop analytics tools
 
 ### Terraform
 
-- infrastructure as code
-- reproducibility
+Chosen for:
+
+- reproducible infrastructure
+- explicit environment modeling
+- version-controlled deployment of both platform and ETL assets
 
 ---
 
 ## Alternatives Considered
 
-### Use CSV in every layer
+### Keep a separate `landing -> raw` copy stage
 
-- rejected because of poor performance
+Rejected because it duplicated the same source file without adding transformation value. The pipeline now reads the landing object directly.
 
-### Full dimensional model (fact + dimensions)
+### Export BI data through Athena query results
 
-- rejected due to unnecessary complexity for Athena
+Rejected as the primary strategy because the project already materializes Parquet through Glue, and Athena `SELECT` results default to CSV. A dedicated Parquet BI export from gold is simpler and more consistent with the lakehouse design.
 
-### Use Redshift
+### Use only live BI connectivity as the active path
 
-- rejected to keep the architecture serverless
+Rejected for now because QuickSight and some service-based BI options introduce licensing or connector dependencies. The active path is a stable Parquet snapshot for local consumption, while live connectors remain future features.
+
+### Full dimensional warehouse model
+
+Rejected because it would add complexity beyond the needs of the current MVP and serverless Athena-centered analytics path.
 
 ---
 
@@ -214,31 +270,63 @@ Includes:
 
 ### Positive
 
-- simple and scalable architecture
-- low operational cost
-- easy to extend toward incremental ingestion
-- good query performance
+- simple event-driven ingestion model
+- low-operations AWS execution path
+- reproducible infrastructure and ETL asset deployment
+- clear separation between configuration, SQL logic, and runtime code
+- efficient analytical storage in Parquet
+- stable local BI handoff through a single-file snapshot
 
 ### Negative
 
-- no strict normalization (extended fact table)
-- dependence on good S3 practices
+- the state machine runtime increases because the BI export is a third synchronous Glue stage
+- the BI snapshot represents only the processed `business_date`, not the full historical gold dataset
+- mature operational hardening is still evolving
 
 ---
 
-## Future Improvements
+## Implementation Status
 
-- incremental ingestion through an API
-- orchestration with EventBridge / Step Functions
-- implementation of Slowly Changing Dimensions
-- dashboarding (QuickSight / BI)
+The decision is no longer only architectural; it is already implemented in the repository.
+
+Current state:
+
+- local pipeline: validated end to end
+- AWS pipeline: validated functionally end to end
+- active runtime path: `landing -> silver -> gold -> bi_export -> validate_catalog`
+- observability: CloudWatch Logs, CloudWatch Alarms, and SNS alerts are implemented
+- security baseline: KMS-backed encryption and hardened buckets are implemented
+- cost controls: AWS Budgets with SNS notifications are implemented
+
+Still evolving:
+
+- broader operational hardening
+- remote Terraform backend strategy
+- CI/CD maturity beyond the current baseline workflow
+- optional live BI connectors
+
+---
+
+## Future Features
+
+Potential future additions include:
+
+- live BI integrations over Athena such as QuickSight, Power BI, or Tableau
+- richer curated BI exports or aggregated marts
+- stronger deployment automation and environment promotion
+- additional governance and operational guardrails
+
+These are intentionally out of the active runtime path today.
 
 ---
 
 ## Notes
 
-This design prioritizes:
+This ADR now reflects the implemented state of the repository as of 2026-04-05.
 
-- simplicity
-- scalability
-- clarity for business analysis
+The source of truth for architecture is the code and IaC under:
+
+- `src/`
+- `infra/`
+- `tests/`
+- `docs/`
