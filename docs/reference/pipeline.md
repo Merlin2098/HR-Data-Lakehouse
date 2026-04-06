@@ -181,5 +181,5 @@ Current operational status:
 
 ## Notes
 
-- `docs/Data Lakehouse Architecture.png` is not the source of truth for this document.
+- `docs/architecture/assets/data-lakehouse-architecture.png` is not the source of truth for this document.
 - Some `.tinker` detector outputs are heuristic and may still over-report technologies such as `airflow`, `ecs`, `ecr`, or `lambda`. The repository structure under `src/`, `infra/`, and `tests/` remains the authoritative technical source.

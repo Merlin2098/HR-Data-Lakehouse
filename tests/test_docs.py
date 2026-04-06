@@ -12,7 +12,7 @@ def read_text(path: str) -> str:
 
 
 def test_pipeline_doc_reflects_trigger_only_landing_flow() -> None:
-    pipeline_doc = read_text("docs/pipeline.md")
+    pipeline_doc = read_text("docs/reference/pipeline.md")
 
     assert "Landing -> Silver -> Gold -> BI Export" in pipeline_doc
     assert "Physical copy to `raw`: removed from the current design" in pipeline_doc
@@ -23,7 +23,7 @@ def test_pipeline_doc_reflects_trigger_only_landing_flow() -> None:
 
 
 def test_overview_doc_matches_current_pipeline_shape() -> None:
-    overview_doc = read_text("docs/etl_architecture_overview.md")
+    overview_doc = read_text("docs/architecture/overview.md")
 
     assert "Landing -> Silver -> Gold -> BI Export" in overview_doc
     assert "landing_to_bronze" not in overview_doc
@@ -33,17 +33,17 @@ def test_overview_doc_matches_current_pipeline_shape() -> None:
 
 
 def test_implementation_doc_describes_current_validation_status() -> None:
-    implementation_doc = read_text("docs/implementation.md")
+    implementation_doc = read_text("docs/reference/implementation.md")
 
-    assert "landing -> silver -> gold" in implementation_doc
-    assert "validated functionally" in implementation_doc
+    assert "Landing -> Silver -> Gold -> BI Export -> Validate Catalog" in implementation_doc
+    assert "validated functionally end to end" in implementation_doc
+    assert "code only, not validated in AWS" not in implementation_doc
     assert "AWS execution has not been validated yet" not in implementation_doc
-    assert "IMPLEMENTED IN CODE, NOT VALIDATED IN AWS" not in implementation_doc
 
 
 def test_docs_describe_local_bi_snapshot_and_future_live_connectors() -> None:
-    terraform_usage = read_text("docs/terraform_usage.md")
-    overview_doc = read_text("docs/etl_architecture_overview.md")
+    terraform_usage = read_text("docs/operations/terraform-usage.md")
+    overview_doc = read_text("docs/architecture/overview.md")
 
     assert "`bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`" in terraform_usage
     assert "local BI consumption path" in terraform_usage
