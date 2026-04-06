@@ -16,12 +16,18 @@ This project shows how that scenario can be transformed into a cloud-native lake
 
 ![Architecture Diagram](./docs/architecture/assets/data-lakehouse-architecture.png)
 
-The current project flow is:
+The PNG above is a high-level visual reference. The current implemented runtime flow is:
 
-- Landing as the event-driven ingestion zone
-- Silver as the curated and typed layer
-- Gold as the analytics-ready layer
-- BI Export as a stable Parquet snapshot for local visualization
+- `Landing -> Silver -> Gold -> BI Export -> Validate Catalog`
+
+Current architecture notes:
+
+- `landing` is the event-driven ingestion zone in `bronze/hr_attrition/landing/`
+- there is no longer a separate operational `raw` promotion stage
+- `gold_to_bi_export` produces a stable Parquet snapshot for local BI consumption
+- Athena is kept in the active runtime for final catalog validation
+
+For the authoritative written design, see [Architecture Overview](./docs/architecture/overview.md) and [Architecture Diagram](./docs/architecture/diagram.md).
 
 ## How It Works
 
@@ -32,8 +38,8 @@ The current project flow is:
    - `bronze_to_silver`
    - `silver_to_gold`
    - `gold_to_bi_export`
-5. Athena validates the curated gold dataset.
-6. A Parquet BI snapshot is left available for local visualization tools.
+5. A stable Parquet BI snapshot is published for local visualization tools.
+6. Athena validates the curated gold dataset.
 
 ## Tech Stack
 
