@@ -29,6 +29,18 @@ Current architecture notes:
 
 For the authoritative written design, see [Architecture Overview](./docs/architecture/overview.md) and [Architecture Diagram](./docs/architecture/diagram.md).
 
+## Dataset
+
+This project uses the **IBM HR Analytics Employee Attrition & Performance** dataset, available on Kaggle:
+
+https://www.kaggle.com/datasets/pavansubhasht/ibm-hr-analytics-attrition-dataset
+
+Due to repository size and licensing considerations, the dataset is not included in this repository.
+
+To run the pipeline locally, download the dataset from Kaggle and place it in the following path:
+
+data/input/hr_attrition.csv
+
 ## How It Works
 
 1. A new CSV file is uploaded to the landing prefix in S3.

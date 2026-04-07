@@ -6,7 +6,7 @@ defaults:
     local: duckdb
     aws: glue_spark
   runtime_variables:
-    source_filename: HR-Employee-Attrition3.csv
+    source_filename: hr_attrition.csv
 
 pipelines:
   bronze_to_silver:
@@ -15,7 +15,7 @@ pipelines:
       layer: bronze
       dataset_name: landing_hr_employee_attrition
       format: csv
-      local_uri: data/HR-Employee-Attrition3.csv
+      local_uri: data/input/hr_attrition.csv
       source_uri: s3://{data_lake_bucket}/bronze/hr_attrition/landing/
       view_name: bronze_hr_attrition
     target:
