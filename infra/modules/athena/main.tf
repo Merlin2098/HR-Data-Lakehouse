@@ -1,7 +1,8 @@
 resource "aws_athena_workgroup" "this" {
-  name  = var.workgroup_name
-  state = "ENABLED"
-  tags  = var.common_tags
+  name          = var.workgroup_name
+  state         = "ENABLED"
+  force_destroy = true
+  tags          = var.common_tags
 
   configuration {
     enforce_workgroup_configuration    = true

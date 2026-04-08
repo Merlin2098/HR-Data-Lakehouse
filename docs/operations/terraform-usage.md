@@ -44,6 +44,7 @@ Operational note about buckets:
 - those placeholders only make the base structure visible and do not replace real data ingestion
 - the curated AWS physical paths are normalized as `silver/hr_employees/` and `gold/hr_attrition/`
 - `landing` acts as the drop zone and trigger path; there is no additional operational copy in `raw`
+- the stack is intentionally configured for easy teardown, including recursive Athena workgroup cleanup and force-destroy S3 buckets
 
 ## Pipeline Trigger and Retry
 
@@ -177,6 +178,8 @@ Use this form for `-var-file`:
 terraform -chdir=infra init -backend=false
 terraform -chdir=infra validate
 terraform -chdir=infra plan -var-file="env/dev.tfvars"
+terraform -chdir=infra apply -var-file="env/dev.tfvars"
+terraform -chdir=infra destroy -var-file="env/dev.tfvars"
 ```
 
 ### Linux/macOS
@@ -185,7 +188,11 @@ terraform -chdir=infra plan -var-file="env/dev.tfvars"
 terraform -chdir=infra init -backend=false
 terraform -chdir=infra validate
 terraform -chdir=infra plan -var-file=env/dev.tfvars
+terraform -chdir=infra apply -var-file=env/dev.tfvars
+terraform -chdir=infra destroy -var-file=env/dev.tfvars
 ```
+
+Always pass the environment-specific `-var-file` for `plan`, `apply`, and `destroy` to avoid interactive prompts for required variables such as `monthly_budget_limit_usd`.
 
 ## Minimum Prerequisite
 
@@ -265,6 +272,15 @@ using:
 ```
 
 Remote backend support for shared state remains a future phase.
+
+## Destroy Behavior
+
+The current IaC is intentionally destroy-friendly in all environments:
+
+- Athena workgroups are recursively deletable
+- S3 buckets can be destroyed even when they contain runtime-generated objects, versions, and delete markers
+
+This makes demo teardown easier, but it also means `terraform destroy` is a powerful operation and should be used carefully.
 
 ## Lock File
 

@@ -66,7 +66,7 @@ def test_transformations_config_declares_bronze_to_silver_pipeline() -> None:
     assert config["defaults"]["engines"] == {"local": "duckdb", "aws": "glue_spark"}
     pipeline = config["pipelines"]["bronze_to_silver"]
 
-    assert pipeline["source"]["local_uri"] == "data/HR-Employee-Attrition3.csv"
+    assert pipeline["source"]["local_uri"] == "data/input/hr_attrition.csv"
     assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/bronze/hr_attrition/landing/"
     assert pipeline["target"]["format"] == "parquet"
     assert pipeline["target"]["layout"] == "dataset"
@@ -395,3 +395,11 @@ def test_glue_runtime_supports_cloudwatch_metrics_and_s3_partition_validation() 
     assert "treat_as_prefix=s3_partition_prefix" in runtime_py
     assert "def resource_exists(value: str | Path, *, treat_as_prefix: bool = False)" in resource_loader
     assert "def list_resource_objects(value: str | Path, *, treat_as_prefix: bool = False)" in resource_loader
+
+
+def test_terraform_resources_are_destroy_friendly_for_demo_lifecycle() -> None:
+    athena_tf = Path(resolve_project_path("infra/modules/athena/main.tf")).read_text(encoding="utf-8")
+    s3_tf = Path(resolve_project_path("infra/modules/s3/main.tf")).read_text(encoding="utf-8")
+
+    assert 'force_destroy = true' in athena_tf
+    assert s3_tf.count("force_destroy = true") == 3

@@ -35,7 +35,7 @@ Business logic does not live hardcoded in Python. It is split across:
 
 This is the arrival zone for the source file and the pipeline trigger point in AWS.
 
-- Locally, the base dataset is [HR-Employee-Attrition3.csv](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/data/HR-Employee-Attrition3.csv)
+- Locally, the base dataset is [hr_attrition.csv](C:/Users/User/Documents/VS%20Code/HR%20Data%20Lakehouse/data/input/hr_attrition.csv)
 - In AWS, the file lands in the shared data lake bucket under the prefix `bronze/hr_attrition/landing/`
 - The pipeline trigger is based on the creation of a CSV object in that prefix
 

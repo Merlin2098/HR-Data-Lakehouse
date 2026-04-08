@@ -81,12 +81,14 @@ See [docs/adr](./docs/adr) for the detailed decision records.
 Infrastructure is managed with Terraform.
 
 ```bash
-terraform init
-terraform plan
-terraform apply
+terraform -chdir=infra init -backend=false
+terraform -chdir=infra plan -var-file="env/dev.tfvars"
+terraform -chdir=infra apply -var-file="env/dev.tfvars"
+terraform -chdir=infra destroy -var-file="env/dev.tfvars"
 ```
 
 Note: this project is designed for demo purposes. Resources can be destroyed after validation to avoid unnecessary cost.
+The Terraform stack is intentionally configured for easy teardown, including recursive Athena workgroup cleanup and force-destroy S3 buckets. Use `destroy` carefully, especially outside `dev`.
 
 ---
 

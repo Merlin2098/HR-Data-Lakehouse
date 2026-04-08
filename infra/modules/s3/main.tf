@@ -48,18 +48,21 @@ data "aws_iam_policy_document" "scripts_bucket_readers" {
 }
 
 resource "aws_s3_bucket" "data_lake" {
-  bucket = local.bucket_names.data_lake
-  tags   = merge(var.common_tags, { Layer = "data-lake" })
+  bucket        = local.bucket_names.data_lake
+  force_destroy = true
+  tags          = merge(var.common_tags, { Layer = "data-lake" })
 }
 
 resource "aws_s3_bucket" "scripts" {
-  bucket = local.bucket_names.scripts
-  tags   = merge(var.common_tags, { Layer = "scripts" })
+  bucket        = local.bucket_names.scripts
+  force_destroy = true
+  tags          = merge(var.common_tags, { Layer = "scripts" })
 }
 
 resource "aws_s3_bucket" "athena_results" {
-  bucket = local.bucket_names.athena_results
-  tags   = merge(var.common_tags, { Layer = "athena-results" })
+  bucket        = local.bucket_names.athena_results
+  force_destroy = true
+  tags          = merge(var.common_tags, { Layer = "athena-results" })
 }
 
 resource "aws_s3_bucket_versioning" "buckets" {

@@ -297,6 +297,7 @@ Current state:
 - observability: CloudWatch Logs, CloudWatch Alarms, and SNS alerts are implemented
 - security baseline: KMS-backed encryption and hardened buckets are implemented
 - cost controls: AWS Budgets with SNS notifications are implemented
+- Terraform lifecycle: deploy and destroy are intentionally optimized for demo use, including recursive Athena workgroup cleanup and destroy-friendly S3 bucket settings
 
 Still evolving:
 
