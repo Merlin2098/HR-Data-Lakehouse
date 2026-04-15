@@ -65,9 +65,9 @@ Automatic AWS trigger:
 
 The current local BI consumption path is:
 
-- export a single Parquet snapshot from `gold`
-- store it in `s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`
-- stable object key: `bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`
+- export a single CSV snapshot from `gold`
+- store it in `s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.csv`
+- stable object key: `bi/hr_attrition_snapshot/hr_attrition_snapshot.csv`
 - download that file locally and open it in the desktop visualization tool of your choice
 
 Terraform now prepares the technical side for that pattern:
@@ -88,7 +88,7 @@ Operational notes:
 - the BI snapshot does not depend on Athena query-result CSVs
 - the BI snapshot is produced automatically after `silver_to_gold`
 - the snapshot contains only the `business_date` processed by the current run
-- new pipeline runs and reruns replace the same stable Parquet object
+- new pipeline runs and reruns replace the same stable CSV object
 
 ## Future Features
 

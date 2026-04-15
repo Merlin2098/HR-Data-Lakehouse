@@ -12,7 +12,7 @@ locals {
   landing_root_uri    = "s3://${var.data_lake_bucket}/bronze/hr_attrition/landing/"
   silver_dataset_uri  = "s3://${var.data_lake_bucket}/silver/hr_employees/"
   gold_dataset_uri    = "s3://${var.data_lake_bucket}/gold/hr_attrition/"
-  bi_export_uri       = "s3://${var.data_lake_bucket}/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet"
+  bi_export_uri       = "s3://${var.data_lake_bucket}/bi/hr_attrition_snapshot/hr_attrition_snapshot.csv"
 
   temp_dir_prefix = "glue-temp"
 }

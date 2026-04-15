@@ -24,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source", help="Optional override for the bronze CSV path.")
     parser.add_argument("--silver-target", help="Optional override for the silver parquet path.")
     parser.add_argument("--gold-target", help="Optional override for the gold output base directory.")
-    parser.add_argument("--bi-target", help="Optional override for the BI export parquet snapshot path.")
+    parser.add_argument("--bi-target", help="Optional override for the BI export CSV snapshot path.")
     parser.add_argument("--silver-query", help="Optional override for the bronze-to-silver SQL file.")
     parser.add_argument("--gold-query", help="Optional override for the silver-to-gold SQL file.")
     parser.add_argument("--bi-query", help="Optional override for the gold-to-BI SQL file.")

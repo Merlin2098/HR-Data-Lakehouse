@@ -36,7 +36,7 @@ gold/hr_attrition/year=YYYY/month=M/day=D/ (Parquet)
 gold_to_bi_export
         |
         v
-bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet
+bi/hr_attrition_snapshot/hr_attrition_snapshot.csv
         |
         v
 validate_catalog
@@ -139,17 +139,17 @@ Output characteristics:
 
 Purpose:
 
-- Produce a stable single-file Parquet snapshot for local BI tools.
+- Produce a stable single-file CSV snapshot for local BI tools.
 - Avoid dependence on live Athena drivers or licensed BI services in the core project path.
 
 Current dataset:
 
 - Logical name: `bi_hr_attrition_snapshot`
-- Physical path: `s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`
+- Physical path: `s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.csv`
 
 Output characteristics:
 
-- Format: Parquet
+- Format: CSV
 - Layout: single file
 - Write mode: full overwrite snapshot
 

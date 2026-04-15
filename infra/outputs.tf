@@ -39,8 +39,8 @@ output "catalog_database_name" {
 }
 
 output "bi_snapshot_s3_uri" {
-  description = "Stable S3 URI for the exported local BI snapshot parquet file."
-  value       = "s3://${module.s3.data_lake_bucket_name}/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet"
+  description = "Stable S3 URI for the exported local BI snapshot CSV file."
+  value       = "s3://${module.s3.data_lake_bucket_name}/bi/hr_attrition_snapshot/hr_attrition_snapshot.csv"
 }
 
 output "state_machine_arn" {

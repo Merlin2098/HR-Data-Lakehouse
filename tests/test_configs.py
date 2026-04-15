@@ -102,8 +102,9 @@ def test_transformations_config_declares_gold_to_bi_export_pipeline() -> None:
     assert pipeline["source"]["local_uri"] == "data/output/gold/hr_attrition"
     assert pipeline["source"]["source_uri"] == "s3://{data_lake_bucket}/gold/hr_attrition/"
     assert pipeline["source"]["view_name"] == "gold_hr_attrition_fact"
-    assert pipeline["target"]["local_uri"] == "data/output/bi/hr_attrition_snapshot.parquet"
-    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet"
+    assert pipeline["target"]["format"] == "csv"
+    assert pipeline["target"]["local_uri"] == "data/output/bi/hr_attrition_snapshot.csv"
+    assert pipeline["target"]["target_uri"] == "s3://{data_lake_bucket}/bi/hr_attrition_snapshot/hr_attrition_snapshot.csv"
     assert pipeline["target"]["layout"] == "file"
     assert pipeline["target"]["write_mode"] == "overwrite_full"
     assert pipeline["artifacts"]["query_path"] == "src/queries/gold_to_bi_export.sql"
@@ -240,6 +241,7 @@ def test_catalog_exposes_only_curated_tables_and_not_quicksight_view() -> None:
     assert 'output "quicksight_view_name"' not in catalog_outputs
     assert 'module.catalog.quicksight_view_name' not in root_outputs
     assert 'output "bi_snapshot_s3_uri"' in root_outputs
+    assert 'hr_attrition_snapshot.csv' in root_outputs
 
 
 def test_s3_module_defines_bi_placeholder_and_no_active_quicksight_policies() -> None:

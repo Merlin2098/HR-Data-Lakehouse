@@ -24,7 +24,7 @@ Current architecture notes:
 
 - `landing` is the event-driven ingestion zone in `bronze/hr_attrition/landing/`
 - there is no longer a separate operational `raw` promotion stage
-- `gold_to_bi_export` produces a stable Parquet snapshot for local BI consumption
+- `gold_to_bi_export` produces a stable CSV snapshot for local BI consumption
 - Athena is kept in the active runtime for final catalog validation
 
 For the authoritative written design, see [Architecture Overview](./docs/architecture/overview.md) and [Architecture Diagram](./docs/architecture/diagram.md).
@@ -50,7 +50,7 @@ data/input/hr_attrition.csv
    - `bronze_to_silver`
    - `silver_to_gold`
    - `gold_to_bi_export`
-5. A stable Parquet BI snapshot is published for local visualization tools.
+5. A stable CSV BI snapshot is published for local visualization tools.
 6. Athena validates the curated gold dataset.
 
 ## Tech Stack

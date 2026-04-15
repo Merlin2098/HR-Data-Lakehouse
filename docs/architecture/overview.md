@@ -124,7 +124,7 @@ The `gold_to_bi_export` job:
 - reads the curated `gold` Parquet dataset
 - preserves the current analytical schema as-is
 - filters the export to the `business_date` processed by the current run
-- writes a single stable Parquet file for local desktop BI tools
+- writes a single stable CSV file for local desktop BI tools
 
 Logical dataset:
 
@@ -133,18 +133,18 @@ Logical dataset:
 Current AWS path:
 
 ```text
-s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet
+s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.csv
 ```
 
 Current local path:
 
 ```text
-data/output/bi/hr_attrition_snapshot.parquet
+data/output/bi/hr_attrition_snapshot.csv
 ```
 
 Output behavior:
 
-- format: Parquet
+- format: CSV
 - layout: single file
 - write mode: full overwrite snapshot
 - intended consumption: local/manual
@@ -180,7 +180,7 @@ Local flow:
 1. reads the CSV from `data/`
 2. generates silver as a local Parquet dataset
 3. generates gold as a partitioned local Parquet dataset
-4. generates a single-file BI snapshot in local Parquet
+4. generates a single-file BI snapshot in local CSV
 
 This mode allows logic, contracts, and outputs to be validated without depending on AWS.
 
@@ -243,7 +243,7 @@ Responsibilities:
 
 - execute the Python scripts
 - run Spark transformations
-- write Parquet datasets to S3
+- write curated Parquet datasets and the BI CSV snapshot to S3
 
 #### AWS Step Functions
 
@@ -338,7 +338,7 @@ This project implements a `config-driven` ETL with:
 - event triggering with EventBridge
 - cataloging with Glue Catalog
 - final validation with Athena
-- local BI snapshot export in Parquet
+- local BI snapshot export in CSV
 
 ## Future features
 

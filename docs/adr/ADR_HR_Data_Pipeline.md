@@ -17,7 +17,7 @@ The project needs a reproducible and low-operations analytics pipeline for HR at
 - ingest a source CSV from S3
 - normalize and type the data for analytical use
 - publish a curated gold dataset optimized for Athena
-- export a stable Parquet snapshot for local BI consumption
+- export a stable CSV snapshot for local BI consumption
 - be deployed and maintained through Terraform
 
 The input dataset is the IBM HR Attrition CSV, and the implementation needs to work in two execution modes:
@@ -126,19 +126,19 @@ The `gold_to_bi_export` job:
 
 - reads the curated `gold_hr_attrition_fact` dataset
 - filters the export to the `business_date` of the current run
-- materializes a single stable Parquet snapshot
+- materializes a single stable CSV snapshot
 - overwrites the same target on every successful execution
 
 Current AWS target:
 
 ```text
-s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet
+s3://<data_lake_bucket>/bi/hr_attrition_snapshot/hr_attrition_snapshot.csv
 ```
 
 Current local target:
 
 ```text
-data/output/bi/hr_attrition_snapshot.parquet
+data/output/bi/hr_attrition_snapshot.csv
 ```
 
 This snapshot is the current recommended BI delivery mechanism for local desktop tools.
@@ -258,7 +258,7 @@ Rejected as the primary strategy because the project already materializes Parque
 
 ### Use only live BI connectivity as the active path
 
-Rejected for now because QuickSight and some service-based BI options introduce licensing or connector dependencies. The active path is a stable Parquet snapshot for local consumption, while live connectors remain future features.
+Rejected for now because QuickSight and some service-based BI options introduce licensing or connector dependencies. The active path is a stable CSV snapshot for local consumption, while live connectors remain future features.
 
 ### Full dimensional warehouse model
 

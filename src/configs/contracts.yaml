@@ -186,7 +186,7 @@ datasets:
         nullable: false
 
   bi_hr_attrition_snapshot:
-    description: Single-file Parquet snapshot exported from gold for local BI tooling.
+    description: Single-file CSV snapshot exported from gold for local BI tooling.
     primary_key:
       - employee_id
     columns:

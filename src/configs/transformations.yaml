@@ -69,7 +69,7 @@ pipelines:
       glue_script_path: src/glue/silver_to_gold.py
       glue_script_s3_key: glue/silver_to_gold.py
   gold_to_bi_export:
-    description: Export the curated gold dataset into a single Parquet snapshot for local BI consumption.
+    description: Export the curated gold dataset into a single CSV snapshot for local BI consumption.
     source:
       layer: gold
       dataset_name: gold_hr_attrition_fact
@@ -80,11 +80,11 @@ pipelines:
     target:
       layer: bi
       dataset_name: bi_hr_attrition_snapshot
-      format: parquet
+      format: csv
       layout: file
       compression: snappy
-      local_uri: data/output/bi/hr_attrition_snapshot.parquet
-      target_uri: s3://{data_lake_bucket}/bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet
+      local_uri: data/output/bi/hr_attrition_snapshot.csv
+      target_uri: s3://{data_lake_bucket}/bi/hr_attrition_snapshot/hr_attrition_snapshot.csv
       write_mode: overwrite_full
     artifacts:
       config_path: src/configs/transformations.yaml

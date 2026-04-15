@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 from datetime import date
 import shutil
 import uuid
@@ -7,7 +8,12 @@ import uuid
 import pyarrow as pa
 import pyarrow.dataset as ds
 
-from src.common.pipeline_runtime import PipelineContext, ensure_materialized_output
+from src.common.pipeline_runtime import (
+    PipelineContext,
+    ensure_materialized_output,
+    promote_spark_single_file_local,
+    promote_spark_single_file_s3,
+)
 from src.common.project_paths import resolve_project_path
 from src.common.resource_loader import list_resource_objects, resource_exists
 from src.glue.bronze_to_silver import resolve_bronze_source_uri, run_pipeline as run_bronze_to_silver
@@ -67,6 +73,7 @@ EXPECTED_GOLD_COLUMNS = [
 ]
 
 EXPECTED_BI_COLUMNS = EXPECTED_GOLD_COLUMNS.copy()
+TEST_SOURCE_CSV = resolve_project_path("data/hr_attrition.csv")
 
 
 def clean_directory(path: str) -> None:
@@ -92,6 +99,11 @@ def directory_partitioning():
     )
 
 
+def read_csv_rows(path):
+    with resolve_project_path(path).open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
 def test_bronze_to_silver_preserves_exact_landing_object_uri_in_aws_mode() -> None:
     source_uri = "s3://demo-lake/bronze/hr_attrition/landing/HR-Employee-Attrition3.csv"
 
@@ -113,7 +125,7 @@ def test_bronze_to_silver_writes_expected_dataset_parquet() -> None:
 
     result = run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
+        source_override=TEST_SOURCE_CSV,
         target_override=output_path,
     )
 
@@ -130,7 +142,7 @@ def test_bronze_to_silver_writes_expected_dataset_parquet() -> None:
     assert first_row["job_role"] == "sales executive"
     assert isinstance(first_row["over_time"], bool)
     assert isinstance(first_row["attrition"], bool)
-    assert first_row["source_file"] == "HR-Employee-Attrition3.csv"
+    assert first_row["source_file"] == "hr_attrition.csv"
     assert first_row["run_id"]
     assert first_row["processed_at_utc"] is not None
 
@@ -142,7 +154,7 @@ def test_silver_to_gold_writes_partitioned_parquet() -> None:
 
     run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
+        source_override=TEST_SOURCE_CSV,
         target_override=silver_output,
     )
     result = run_silver_to_gold(
@@ -167,20 +179,20 @@ def test_silver_to_gold_writes_partitioned_parquet() -> None:
     assert first_row["year"] == 2026
     assert first_row["month"] == 4
     assert first_row["day"] == 3
-    assert first_row["source_file"] == "HR-Employee-Attrition3.csv"
+    assert first_row["source_file"] == "hr_attrition.csv"
     assert first_row["run_id"]
     assert first_row["processed_at_utc"] is not None
 
 
-def test_gold_to_bi_export_writes_single_parquet_snapshot() -> None:
+def test_gold_to_bi_export_writes_single_csv_snapshot() -> None:
     test_root = unique_test_root("gold_to_bi_export")
     silver_output = test_root / "silver" / "hr_employees"
     gold_output = test_root / "gold" / "hr_attrition"
-    bi_output = test_root / "bi" / "hr_attrition_snapshot.parquet"
+    bi_output = test_root / "bi" / "hr_attrition_snapshot.csv"
 
     run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
+        source_override=TEST_SOURCE_CSV,
         target_override=silver_output,
     )
     gold_result = run_silver_to_gold(
@@ -196,28 +208,28 @@ def test_gold_to_bi_export_writes_single_parquet_snapshot() -> None:
         business_date_value="2026-04-03",
     )
 
-    dataset = ds.dataset(bi_output, format="parquet")
-    table = dataset.to_table()
-    first_row = table.slice(0, 1).to_pylist()[0]
+    rows = read_csv_rows(bi_output)
+    first_row = rows[0]
 
     assert result["engine"] == "duckdb"
     assert result["columns"] == EXPECTED_BI_COLUMNS
     assert bi_output.is_file()
-    assert table.column_names == EXPECTED_BI_COLUMNS
-    assert first_row["ingestion_date"].isoformat() == "2026-04-03"
-    assert first_row["employee_id"] > 0
-    assert {row["ingestion_date"].isoformat() for row in table.to_pylist()} == {"2026-04-03"}
+    assert bi_output.suffix == ".csv"
+    assert list(first_row.keys()) == EXPECTED_BI_COLUMNS
+    assert first_row["ingestion_date"] == "2026-04-03"
+    assert int(first_row["employee_id"]) > 0
+    assert {row["ingestion_date"] for row in rows} == {"2026-04-03"}
 
 
 def test_gold_to_bi_export_filters_to_requested_business_date_when_gold_has_history() -> None:
     test_root = unique_test_root("gold_to_bi_export_history")
     silver_output = test_root / "silver" / "hr_employees"
     gold_output = test_root / "gold" / "hr_attrition"
-    bi_output = test_root / "bi" / "hr_attrition_snapshot.parquet"
+    bi_output = test_root / "bi" / "hr_attrition_snapshot.csv"
 
     run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
+        source_override=TEST_SOURCE_CSV,
         target_override=silver_output,
     )
     run_silver_to_gold(
@@ -240,9 +252,9 @@ def test_gold_to_bi_export_filters_to_requested_business_date_when_gold_has_hist
         business_date_value="2026-04-03",
     )
 
-    table = ds.dataset(bi_output, format="parquet").to_table()
-    ingestion_dates = {row["ingestion_date"].isoformat() for row in table.to_pylist()}
-    employee_ids = table.column("employee_id").to_pylist()
+    rows = read_csv_rows(bi_output)
+    ingestion_dates = {row["ingestion_date"] for row in rows}
+    employee_ids = [int(row["employee_id"]) for row in rows]
 
     assert result["business_date"] == "2026-04-03"
     assert ingestion_dates == {"2026-04-03"}
@@ -253,11 +265,11 @@ def test_full_runner_executes_bronze_to_gold_end_to_end() -> None:
     test_root = unique_test_root("full_pipeline")
     silver_output = test_root / "silver" / "hr_employees"
     gold_output = test_root / "gold" / "hr_attrition"
-    bi_output = test_root / "bi" / "hr_attrition_snapshot.parquet"
+    bi_output = test_root / "bi" / "hr_attrition_snapshot.csv"
 
     result = run_local_pipeline(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
+        source_override=TEST_SOURCE_CSV,
         silver_target_override=silver_output,
         gold_target_override=gold_output,
         bi_target_override=bi_output,
@@ -267,7 +279,7 @@ def test_full_runner_executes_bronze_to_gold_end_to_end() -> None:
     silver_table = ds.dataset(silver_output, format="parquet").to_table()
     gold_dataset = ds.dataset(gold_output, format="parquet", partitioning=directory_partitioning())
     gold_table = gold_dataset.to_table()
-    bi_table = ds.dataset(bi_output, format="parquet").to_table()
+    bi_rows = read_csv_rows(bi_output)
 
     assert result["engine"] == "duckdb"
     assert result["silver"]["columns"] == EXPECTED_SILVER_COLUMNS
@@ -275,10 +287,11 @@ def test_full_runner_executes_bronze_to_gold_end_to_end() -> None:
     assert result["bi_export"]["columns"] == EXPECTED_BI_COLUMNS
     assert silver_table.num_rows > 0
     assert gold_table.num_rows > 0
-    assert bi_table.num_rows > 0
+    assert len(bi_rows) > 0
     assert (gold_output / "year=2025" / "month=12" / "day=15").exists()
     assert gold_table.column("run_id").to_pylist()[0] == silver_table.column("run_id").to_pylist()[0]
     assert bi_output.exists()
+    assert list(bi_rows[0].keys()) == EXPECTED_BI_COLUMNS
 
 
 def test_full_runner_defaults_to_today_when_ingestion_date_is_not_provided() -> None:
@@ -288,7 +301,7 @@ def test_full_runner_defaults_to_today_when_ingestion_date_is_not_provided() -> 
 
     result = run_local_pipeline(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
+        source_override=TEST_SOURCE_CSV,
         silver_target_override=silver_output,
         gold_target_override=gold_output,
     )
@@ -305,7 +318,7 @@ def test_gold_overwrite_partition_replaces_only_the_current_day() -> None:
 
     run_bronze_to_silver(
         config_path=resolve_project_path("src/configs/transformations.yaml"),
-        source_override=resolve_project_path("data/HR-Employee-Attrition3.csv"),
+        source_override=TEST_SOURCE_CSV,
         target_override=silver_output,
     )
     run_silver_to_gold(
@@ -410,6 +423,7 @@ def test_ensure_materialized_output_treats_s3_partitions_as_prefixes(monkeypatch
         source_format="parquet",
         source_view_name="silver_hr_employees",
         target_dataset_name="gold_hr_attrition_fact",
+        target_format="parquet",
         output_compression="snappy",
         write_mode="overwrite_partition",
         target_layout="dataset",
@@ -428,4 +442,64 @@ def test_ensure_materialized_output_treats_s3_partitions_as_prefixes(monkeypatch
     assert calls == [
         ("exists", expected_partition_uri, True),
         ("list", expected_partition_uri, True),
+    ]
+
+
+def test_promote_spark_single_file_local_supports_csv_parts() -> None:
+    test_root = unique_test_root("spark_csv_local")
+    staging_root = test_root / "stage"
+    staging_root.mkdir(parents=True, exist_ok=True)
+    staged_csv = staging_root / "part-00000.csv"
+    staged_csv.write_text("employee_id,ingestion_date\n1,2026-04-03\n", encoding="utf-8")
+    target_csv = test_root / "hr_attrition_snapshot.csv"
+
+    promoted_path = promote_spark_single_file_local(staging_root, target_csv, "csv")
+
+    assert promoted_path == str(target_csv)
+    assert target_csv.read_text(encoding="utf-8") == "employee_id,ingestion_date\n1,2026-04-03\n"
+    assert not staging_root.exists()
+
+
+def test_promote_spark_single_file_s3_supports_csv_parts(monkeypatch) -> None:
+    copied: list[tuple[str, str, str, str]] = []
+    deleted: list[tuple[str, list[str]]] = []
+
+    class FakeSparkS3Client:
+        def copy_object(self, *, Bucket: str, Key: str, CopySource: dict[str, str]):
+            copied.append((Bucket, Key, CopySource["Bucket"], CopySource["Key"]))
+
+        def delete_objects(self, *, Bucket: str, Delete: dict[str, list[dict[str, str]]]):
+            deleted.append((Bucket, [item["Key"] for item in Delete["Objects"]]))
+
+    monkeypatch.setattr("src.common.pipeline_runtime.spark_runtime_s3_client", lambda: FakeSparkS3Client())
+    monkeypatch.setattr(
+        "src.common.pipeline_runtime.list_resource_objects",
+        lambda value, *, treat_as_prefix=False: [
+            "s3://demo-lake/bi/hr_attrition_snapshot/hr_attrition_snapshot_spark_stage_abcd/part-00000.csv",
+            "s3://demo-lake/bi/hr_attrition_snapshot/hr_attrition_snapshot_spark_stage_abcd/_SUCCESS",
+        ],
+    )
+
+    promote_spark_single_file_s3(
+        "s3://demo-lake/bi/hr_attrition_snapshot/hr_attrition_snapshot_spark_stage_abcd/",
+        "s3://demo-lake/bi/hr_attrition_snapshot/hr_attrition_snapshot.csv",
+        "csv",
+    )
+
+    assert copied == [
+        (
+            "demo-lake",
+            "bi/hr_attrition_snapshot/hr_attrition_snapshot.csv",
+            "demo-lake",
+            "bi/hr_attrition_snapshot/hr_attrition_snapshot_spark_stage_abcd/part-00000.csv",
+        )
+    ]
+    assert deleted == [
+        (
+            "demo-lake",
+            [
+                "bi/hr_attrition_snapshot/hr_attrition_snapshot_spark_stage_abcd/part-00000.csv",
+                "bi/hr_attrition_snapshot/hr_attrition_snapshot_spark_stage_abcd/_SUCCESS",
+            ],
+        )
     ]

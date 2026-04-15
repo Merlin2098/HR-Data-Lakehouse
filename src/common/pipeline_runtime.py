@@ -40,6 +40,7 @@ class PipelineContext:
     source_format: str
     source_view_name: str
     target_dataset_name: str
+    target_format: str
     output_compression: str
     write_mode: str
     target_layout: str
@@ -121,6 +122,7 @@ def load_pipeline_context(
         source_format=str(source_config.get("format", "parquet")),
         source_view_name=str(source_config.get("view_name", source_config.get("dataset_name", "pipeline_source"))),
         target_dataset_name=str(target_config.get("dataset_name", pipeline_name)),
+        target_format=str(target_config.get("format", "parquet")),
         output_compression=str(target_config.get("compression", "snappy")),
         write_mode=str(target_config.get("write_mode", "overwrite_full")),
         target_layout=str(target_config.get("layout", "dataset")),
@@ -281,6 +283,22 @@ def run_parquet_to_parquet_pipeline(
         sql_variables=sql_variables,
         partition_by=normalized_partition_by,
         partition_values=normalized_partition_values,
+        quality_context=quality_context,
+    )
+
+
+def run_parquet_to_csv_pipeline(
+    context: PipelineContext,
+    *,
+    sql_variables: dict[str, Any] | None = None,
+    quality_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return run_pipeline(
+        context,
+        source_format="parquet",
+        sql_variables=sql_variables,
+        partition_by=[],
+        partition_values={},
         quality_context=quality_context,
     )
 
@@ -447,6 +465,9 @@ def materialize_duckdb_result(
     partition_by: list[str],
     partition_values: dict[str, Any],
 ) -> str:
+    if context.target_format not in {"parquet", "csv"}:
+        raise ValueError(f"Unsupported target format '{context.target_format}'.")
+
     if partition_by:
         return materialize_duckdb_partitioned_result(
             connection,
@@ -457,6 +478,8 @@ def materialize_duckdb_result(
         )
 
     if context.target_layout == "dataset":
+        if context.target_format != "parquet":
+            raise ValueError("DuckDB dataset layout currently supports parquet targets only.")
         target_root = prepare_dataset_output_root(context.target_uri)
         target_file = target_root / "data_0.parquet"
         target_sql = escape_sql_string(str(target_file))
@@ -472,12 +495,20 @@ def materialize_duckdb_result(
     if target_file.exists():
         target_file.unlink()
     target_sql = escape_sql_string(str(target_file))
-    connection.execute(
-        "COPY "
-        f"(SELECT * FROM {result_view_name}) "
-        f"TO '{target_sql}' "
-        f"(FORMAT PARQUET, COMPRESSION '{context.output_compression}');"
-    )
+    if context.target_format == "parquet":
+        connection.execute(
+            "COPY "
+            f"(SELECT * FROM {result_view_name}) "
+            f"TO '{target_sql}' "
+            f"(FORMAT PARQUET, COMPRESSION '{context.output_compression}');"
+        )
+    else:
+        connection.execute(
+            "COPY "
+            f"(SELECT * FROM {result_view_name}) "
+            f"TO '{target_sql}' "
+            "(FORMAT CSV, HEADER TRUE, DELIMITER ',');"
+        )
     return str(target_file)
 
 
@@ -489,6 +520,9 @@ def materialize_duckdb_partitioned_result(
     partition_by: list[str],
     partition_values: dict[str, Any],
 ) -> str:
+    if context.target_format != "parquet":
+        raise ValueError("Partitioned DuckDB materialization currently supports parquet targets only.")
+
     partition_spec = ", ".join(partition_by)
 
     if context.write_mode == "overwrite_full":
@@ -541,28 +575,38 @@ def materialize_spark_result(result_df, context: PipelineContext, *, partition_b
             raise ValueError("Single-file Spark materialization does not support partitioned outputs.")
         return materialize_spark_single_file_result(result_df, context)
 
-    writer = result_df.write.mode("overwrite").option("compression", context.output_compression)
-    if partition_by:
-        writer.partitionBy(*partition_by).parquet(context.target_uri)
+    if context.target_format == "parquet":
+        writer = result_df.write.mode("overwrite").option("compression", context.output_compression)
+        if partition_by:
+            writer.partitionBy(*partition_by).parquet(context.target_uri)
+        else:
+            writer.parquet(context.target_uri)
+    elif context.target_format == "csv":
+        writer = result_df.write.mode("overwrite").option("header", "true")
+        if partition_by:
+            writer.partitionBy(*partition_by).csv(context.target_uri)
+        else:
+            writer.csv(context.target_uri)
     else:
-        writer.parquet(context.target_uri)
+        raise ValueError(f"Unsupported target format '{context.target_format}'.")
     return context.target_uri
 
 
 def materialize_spark_single_file_result(result_df, context: PipelineContext) -> str:  # pragma: no cover - exercised in AWS runtime
     staging_location = build_spark_staging_location(context.target_uri)
-    (
-        result_df.coalesce(1)
-        .write.mode("overwrite")
-        .option("compression", context.output_compression)
-        .parquet(staging_location)
-    )
+    writer = result_df.coalesce(1).write.mode("overwrite")
+    if context.target_format == "parquet":
+        writer.option("compression", context.output_compression).parquet(staging_location)
+    elif context.target_format == "csv":
+        writer.option("header", "true").csv(staging_location)
+    else:
+        raise ValueError(f"Unsupported target format '{context.target_format}'.")
 
     if is_s3_uri(context.target_uri):
-        promote_spark_single_file_s3(staging_location, context.target_uri)
+        promote_spark_single_file_s3(staging_location, context.target_uri, context.target_format)
         return context.target_uri
 
-    return promote_spark_single_file_local(staging_location, context.target_uri)
+    return promote_spark_single_file_local(staging_location, context.target_uri, context.target_format)
 
 
 def build_spark_staging_location(target_uri: str | Path) -> str:
@@ -580,40 +624,48 @@ def build_spark_staging_location(target_uri: str | Path) -> str:
     return str(target_path.parent / f"{target_path.stem}{stage_suffix}")
 
 
-def promote_spark_single_file_local(staging_location: str, target_uri: str | Path) -> str:
+def promote_spark_single_file_local(staging_location: str, target_uri: str | Path, target_format: str) -> str:
     staging_root = Path(resolve_project_path(staging_location))
     target_file = ensure_parent_dir(target_uri)
-    parquet_files = sorted(staging_root.rglob("part-*.parquet"))
-    if not parquet_files:
-        raise FileNotFoundError(f"No Spark parquet part file was produced under {staging_root}.")
+    staged_files = sorted(staging_root.rglob(f"part-*.{spark_part_extension(target_format)}"))
+    if not staged_files:
+        raise FileNotFoundError(f"No Spark {target_format} part file was produced under {staging_root}.")
 
     if target_file.exists():
         target_file.unlink()
 
-    shutil.move(str(parquet_files[0]), str(target_file))
+    shutil.move(str(staged_files[0]), str(target_file))
     if staging_root.exists():
         shutil.rmtree(staging_root)
     return str(target_file)
 
 
-def promote_spark_single_file_s3(staging_location: str, target_uri: str) -> None:
+def promote_spark_single_file_s3(staging_location: str, target_uri: str, target_format: str) -> None:
     client = spark_runtime_s3_client()
     bucket, target_key = split_s3_uri(target_uri)
     stage_bucket, _ = split_s3_uri(staging_location)
     staged_objects = list_resource_objects(staging_location, treat_as_prefix=True)
     staged_keys = [split_s3_uri(staged_object)[1] for staged_object in staged_objects]
-    parquet_keys = [
-        key for key in staged_keys if key.rsplit("/", 1)[-1].startswith("part-") and key.endswith(".parquet")
+    staged_part_keys = [
+        key
+        for key in staged_keys
+        if key.rsplit("/", 1)[-1].startswith("part-") and key.endswith(f".{spark_part_extension(target_format)}")
     ]
-    if not parquet_keys:
-        raise FileNotFoundError(f"No Spark parquet part file was produced under {staging_location}.")
+    if not staged_part_keys:
+        raise FileNotFoundError(f"No Spark {target_format} part file was produced under {staging_location}.")
 
     client.copy_object(
         Bucket=bucket,
         Key=target_key,
-        CopySource={"Bucket": stage_bucket, "Key": parquet_keys[0]},
+        CopySource={"Bucket": stage_bucket, "Key": staged_part_keys[0]},
     )
     delete_s3_objects(client, stage_bucket, staged_keys)
+
+
+def spark_part_extension(target_format: str) -> str:
+    if target_format in {"parquet", "csv"}:
+        return target_format
+    raise ValueError(f"Unsupported target format '{target_format}'.")
 
 
 def spark_runtime_s3_client():

@@ -45,7 +45,7 @@ def test_docs_describe_local_bi_snapshot_and_future_live_connectors() -> None:
     terraform_usage = read_text("docs/operations/terraform-usage.md")
     overview_doc = read_text("docs/architecture/overview.md")
 
-    assert "`bi/hr_attrition_snapshot/hr_attrition_snapshot.parquet`" in terraform_usage
+    assert "`bi/hr_attrition_snapshot/hr_attrition_snapshot.csv`" in terraform_usage
     assert "local BI consumption path" in terraform_usage
     assert "QuickSight, Athena drivers, and other live BI connectors are documented as future features" in terraform_usage
     assert "local BI snapshot export" in overview_doc

@@ -30,7 +30,7 @@ from src.common.pipeline_runtime import (
     default_run_id,
     load_pipeline_context,
     parse_ingestion_date,
-    run_parquet_to_parquet_pipeline,
+    run_parquet_to_csv_pipeline,
     sql_string_literal,
 )
 
@@ -40,13 +40,13 @@ DEFAULT_PIPELINE_NAME = "gold_to_bi_export"
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Export the gold HR dataset into a BI-ready Parquet snapshot.")
+    parser = argparse.ArgumentParser(description="Export the gold HR dataset into a BI-ready CSV snapshot.")
     parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="Local path or S3 URI to the pipeline YAML file.")
     parser.add_argument("--pipeline", default=DEFAULT_PIPELINE_NAME, help="Pipeline name inside the YAML config.")
     parser.add_argument("--query", help="Optional override for the SQL file path or URI.")
     parser.add_argument("--contract", help="Optional override for the contract YAML path or URI.")
     parser.add_argument("--source", help="Optional override for the source parquet path or URI.")
-    parser.add_argument("--target", help="Optional override for the exported Parquet snapshot path or URI.")
+    parser.add_argument("--target", help="Optional override for the exported CSV snapshot path or URI.")
     parser.add_argument("--config-uri", dest="config_uri", help="Alias for --config when running in AWS.")
     parser.add_argument("--query-uri", dest="query_uri", help="Alias for --query when running in AWS.")
     parser.add_argument("--contracts-uri", dest="contract_uri", help="Alias for --contract when running in AWS.")
@@ -95,7 +95,7 @@ def run_pipeline(
     resolved_run_id = str(runtime_variables.get("run_id") or run_id or default_run_id())
     resolved_processed_at_utc = str(runtime_variables.get("processed_at_utc") or processed_at_utc or default_processed_at_utc())
 
-    result = run_parquet_to_parquet_pipeline(
+    result = run_parquet_to_csv_pipeline(
         context,
         sql_variables={
             "ingestion_date": sql_string_literal(business_date.isoformat()),
